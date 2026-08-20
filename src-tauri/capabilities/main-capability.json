@@ -1,0 +1,31 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema-capability.json",
+  "identifier": "main-capability",
+  "description": "Main window permissions for CSheet desktop",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "opener:allow-open-url",
+    "deep-link:default",
+    "http:default",
+    "http:allow-fetch",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-dir",
+    "fs:allow-create-dir",
+    "fs:allow-exists",
+    "fs:allow-stat",
+    "fs:allow-rename",
+    "fs:allow-copy-file",
+    "fs:allow-remove",
+    "fs:scope-app-data-recursive",
+    "fs:scope-app-cache-recursive",
+    "fs:scope-app-config-recursive",
+    "fs:scope-temp-recursive"
+  ]
+}

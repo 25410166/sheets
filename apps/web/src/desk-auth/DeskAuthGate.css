@@ -1,0 +1,361 @@
+/* Copyright (c) 2026 CookApps – SPDX-License-Identifier: Apache-2.0 */
+
+/* ─── CSheet Desktop Auth Screen ─────────────────────────────────────────── */
+/* Premium dark theme with green accent matching CSheet brand */
+
+:root {
+  --da-bg: #0f1117;
+  --da-surface: #181c25;
+  --da-surface-hover: #1e2333;
+  --da-border: rgba(255, 255, 255, 0.08);
+  --da-text: #e2e8f0;
+  --da-text-muted: #94a3b8;
+  --da-green: #22c55e;
+  --da-green-dim: rgba(34, 197, 94, 0.12);
+  --da-green-glow: rgba(34, 197, 94, 0.25);
+  --da-amber: #f59e0b;
+  --da-red: #ef4444;
+  --da-blue: #3b82f6;
+  --da-radius: 14px;
+  --da-radius-sm: 8px;
+  --da-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Gate overlay ─────────────────────────────────────────────────────── */
+
+.da-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--da-bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Subtle animated grid background */
+.da-gate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(34, 197, 94, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 197, 94, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+/* ─── Card ─────────────────────────────────────────────────────────────── */
+
+.da-card {
+  position: relative;
+  background: var(--da-surface);
+  border: 1px solid var(--da-border);
+  border-radius: var(--da-radius);
+  box-shadow: var(--da-shadow);
+  padding: 40px 36px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  animation: da-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes da-slide-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ─── Logo area ────────────────────────────────────────────────────────── */
+
+.da-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.da-logo-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--da-green-dim);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 20px var(--da-green-glow);
+}
+
+.da-logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--da-text);
+  letter-spacing: -0.5px;
+}
+
+.da-logo-text span {
+  color: var(--da-green);
+}
+
+/* ─── Title / subtitle ─────────────────────────────────────────────────── */
+
+.da-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--da-text);
+  margin: 0 0 6px;
+  line-height: 1.2;
+}
+
+.da-subtitle {
+  font-size: 14px;
+  color: var(--da-text-muted);
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+/* ─── Primary login button ─────────────────────────────────────────────── */
+
+.da-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--da-radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  outline: none;
+  letter-spacing: -0.2px;
+}
+
+.da-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4);
+}
+
+.da-btn--primary {
+  background: var(--da-green);
+  color: #0a1608;
+}
+
+.da-btn--primary:hover:not(:disabled) {
+  background: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
+}
+
+.da-btn--primary:active {
+  transform: translateY(0);
+}
+
+.da-btn--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.da-btn--ghost {
+  background: transparent;
+  color: var(--da-text-muted);
+  border: 1px solid var(--da-border);
+}
+
+.da-btn--ghost:hover {
+  background: var(--da-surface-hover);
+  color: var(--da-text);
+}
+
+.da-btn--amber {
+  background: var(--da-amber);
+  color: #1a0a00;
+}
+
+.da-btn--red {
+  background: var(--da-red);
+  color: #fff;
+}
+
+/* ─── Status states ────────────────────────────────────────────────────── */
+
+.da-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--da-green-dim);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: var(--da-radius-sm);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.da-status--neutral {
+  background: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.da-status--warn {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.da-status--error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.da-status__icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.da-status__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.da-status__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--da-text);
+  margin: 0 0 3px;
+}
+
+.da-status__desc {
+  font-size: 13px;
+  color: var(--da-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── Spinner ──────────────────────────────────────────────────────────── */
+
+.da-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: da-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes da-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Divider ──────────────────────────────────────────────────────────── */
+
+.da-divider {
+  height: 1px;
+  background: var(--da-border);
+  margin: 24px 0;
+}
+
+/* ─── Footer ───────────────────────────────────────────────────────────── */
+
+.da-footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--da-text-muted);
+  margin-top: 20px;
+}
+
+.da-footer a {
+  color: var(--da-green);
+  text-decoration: none;
+}
+
+.da-footer a:hover { text-decoration: underline; }
+
+/* ─── User info chip ───────────────────────────────────────────────────── */
+
+.da-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--da-green-dim);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: var(--da-radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 20px;
+}
+
+.da-user-chip__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--da-green), #16a34a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0a1608;
+  flex-shrink: 0;
+}
+
+.da-user-chip__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.da-user-chip__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--da-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.da-user-chip__plan {
+  font-size: 12px;
+  color: var(--da-green);
+  margin-top: 2px;
+}
+
+/* ─── Device list ──────────────────────────────────────────────────────── */
+
+.da-device-list {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--da-radius-sm);
+  padding: 12px;
+  margin: 12px 0;
+  list-style: none;
+  margin-block: 12px;
+  padding-inline-start: 0;
+}
+
+.da-device-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--da-text-muted);
+  padding: 4px 0;
+}
+
+.da-device-list li + li {
+  border-top: 1px solid var(--da-border);
+  margin-top: 6px;
+  padding-top: 10px;
+}
+
+/* ─── CookApps logo decoration ─────────────────────────────────────────── */
+
+.da-powered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--da-text-muted);
+  margin-top: 24px;
+  opacity: 0.7;
+}

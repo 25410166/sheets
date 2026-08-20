@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(64, 16) scale(12)">
+    <!-- Page body — green fill (#16a34a). -->
+    <path d="M2 0C0.9 0 0 0.9 0 2V38C0 39.1 0.9 40 2 40H30C31.1 40 32 39.1 32 38V10L22 0H2Z" fill="#16a34a"/>
+    <!-- Folded corner, darker shade of green (#14532d). -->
+    <path d="M22 0L32 10H24C22.9 10 22 9.1 22 8V0Z" fill="#14532d"/>
+    <!-- Grid rects -->
+    <rect x="7"    y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="11.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="16"   y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="20.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="7"    y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="11.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="16"   y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="20.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="7"    y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="11.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="16"   y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+    <rect x="20.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+  </g>
+</svg>
