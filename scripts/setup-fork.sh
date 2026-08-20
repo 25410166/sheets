@@ -62,8 +62,10 @@ echo "==> building fork"
 # reason. turbo caches successful packages, so a retry only rebuilds the ones
 # that failed → fast and reliable. Retry up to 3x before giving up.
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
+# Limit turbo's parallel workers to avoid runner OOM (default = ncpus).
+export TURBO_CONCURRENCY="${TURBO_CONCURRENCY:-4}"
 
-fork_build() { ( cd "$FORK_DIR" && pnpm build -- --concurrency 4 ); }
+fork_build() { ( cd "$FORK_DIR" && pnpm build ); }
 attempt=1
 until fork_build; do
   if [ "$attempt" -ge 3 ]; then
