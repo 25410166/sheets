@@ -123,9 +123,9 @@ test('mint a password-protected secure link → row shows the password badge', a
     )
     .toBeGreaterThanOrEqual(1);
 
-  // Reload + reopen from the home list so the serverFileId binding (the
-  // gate for the secure-link section) is explicit.
-  await page.reload();
+  // Go to home list so the serverFileId binding (the
+  // gate for the secure-link section) is explicit when opening from home.
+  await page.goto('/home');
   await waitForSignedInLanding(page);
   const firstFile = page.locator('[data-testid^="home-file-row-"]').first();
   await firstFile.waitFor({ timeout: 15_000 });
