@@ -76,6 +76,7 @@ import { useDesktopRecoveryWriter } from './recovery/desktop-recovery';
 import { DesktopRecoveryBanner } from './recovery/DesktopRecoveryBanner';
 import { FileSourceProvider, useFileSource } from './file-source';
 import { AuthProvider, PersonalAuthGate } from './auth';
+import { DeskAuthProvider, DeskAuthGate } from './desk-auth';
 import { useAuth } from './auth/auth-context';
 import { useVersionHistoryCapture } from './version-history/useVersionHistoryCapture';
 import { useTouchPan } from './touch/useTouchPan';
@@ -686,7 +687,8 @@ export function App() {
       <UIContext.Provider value={uiValue}>
         <WorkbookContext.Provider value={wbValue}>
           <LoadingContext.Provider value={loadingValue}>
-            <AuthProvider>
+            <DeskAuthProvider>
+              <AuthProvider>
               <FileSourceProvider>
                 <ToastProvider>
                   <ActivityProvider>
@@ -781,7 +783,8 @@ export function App() {
                   <ToastContainer />
                 </ToastProvider>
               </FileSourceProvider>
-            </AuthProvider>
+              </AuthProvider>
+            </DeskAuthProvider>
           </LoadingContext.Provider>
         </WorkbookContext.Provider>
       </UIContext.Provider>

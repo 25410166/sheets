@@ -213,6 +213,15 @@ if (typeof window !== 'undefined' && isDesktop()) {
         writeRecovery?(bytes: ArrayBuffer): Promise<void>;
         readRecovery?(): Promise<ArrayBuffer | null>;
         clearRecovery?(): Promise<void>;
+        // CookApps desktop auth IPC
+        tokenGet?(name: string): Promise<string | null>;
+        tokenSet?(name: string, value: string): Promise<void>;
+        nativeFetch?(opts: {
+          url: string;
+          method?: string;
+          headers?: Record<string, string>;
+          body?: string;
+        }): Promise<{ status: number; body: string }>;
       }
     | undefined;
 
@@ -533,6 +542,29 @@ if (typeof window !== 'undefined' && isDesktop()) {
       async clearRecovery(): Promise<void> {
         if (!filePath) return;
         await inv('clear_recovery', { path: filePath });
+      },
+
+      // ── CookApps desktop auth IPC ────────────────────────────────────────
+      // Secure token store – all reads/writes go through Rust token_get/token_set
+      // which persist to $APPDATA/csheet/tokens/*.bin. Components must not call
+      // localStorage directly for auth tokens.
+      async tokenGet(name: string): Promise<string | null> {
+        const val = await inv('token_get', { name }).catch(() => null);
+        return typeof val === 'string' ? val : null;
+      },
+      async tokenSet(name: string, value: string): Promise<void> {
+        await inv('token_set', { name, value }).catch(() => undefined);
+      },
+      // HTTP proxy for CookApps API – avoids webview CORS/CSP restrictions.
+      // Only allows requests to cookapps.net or localhost:3000.
+      async nativeFetch(opts: {
+        url: string;
+        method?: string;
+        headers?: Record<string, string>;
+        body?: string;
+      }): Promise<{ status: number; body: string }> {
+        const result = await inv('native_fetch', { req: opts });
+        return result as { status: number; body: string };
       },
     };
   } else {

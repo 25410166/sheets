@@ -42,6 +42,8 @@ yarn-debug.log*
 .env
 .env.local
 .env.*.local
+target/
+src-tauri/target/
 
 # OS
 .DS_Store

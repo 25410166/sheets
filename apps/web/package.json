@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@csheet/auth": "workspace:*",
     "@e965/xlsx": "0.20.3",
     "@hocuspocus/provider": "^2.15.2",
     "@casualoffice/sheets": "workspace:*",
