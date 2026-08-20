@@ -189,6 +189,9 @@ importers:
       '@casualoffice/sheets':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@csheet/auth':
+        specifier: workspace:*
+        version: link:../../packages/sheets-auth
       '@e965/xlsx':
         specifier: 0.20.3
         version: 0.20.3
@@ -533,6 +536,13 @@ importers:
       yjs:
         specifier: ^13.6.21
         version: 13.6.30
+
+  packages/sheets-auth:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
 
 packages:
 
