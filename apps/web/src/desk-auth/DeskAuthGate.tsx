@@ -23,7 +23,7 @@ export function DeskAuthGate({ children }: Props) {
   if (
     !isDesktop() ||
     !authService.hasPublicKey() ||
-    (typeof window !== 'undefined' && (window as any).__DESK_AUTH_BYPASS__)
+    (typeof window !== 'undefined' && (window as unknown as { __DESK_AUTH_BYPASS__?: boolean }).__DESK_AUTH_BYPASS__)
   ) {
     return <>{children}</>;
   }
