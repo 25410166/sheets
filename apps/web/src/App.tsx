@@ -710,68 +710,70 @@ export function App() {
                                   <ThemeBridge />
                                   <RouteWorkbookSync replaceWorkbook={replaceWorkbook} />
                                   <EditTracker markUserEdited={markUserEdited} />
-                                  <PersonalAuthGate>
-                                    <RouteHost
-                                      routeIsHome={showHomeList}
-                                      home={<MySpreadsheetsList />}
-                                      editor={
-                                        <>
-                                          <CollabDriver>
-                                            <div
-                                              className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
-                                              data-ribbon={ribbonCompact ? 'compact' : 'full'}
-                                              data-testid="app-shell"
-                                            >
-                                              <TitleBar />
-                                              <Toolbar />
-                                              <AutosaveRestoreBanner />
-                                              <DesktopRecoveryBanner />
-                                              <PreviewBanner />
-                                              {formulaBarVisible && <FormulaBar />}
-                                              <div className="grid-row">
-                                                <main className="grid-host" data-testid="grid-host">
-                                                  <UniverSheet
-                                                    revision={meta.revision}
-                                                    initialSnapshot={initial}
+                                  <DeskAuthGate>
+                                    <PersonalAuthGate>
+                                      <RouteHost
+                                        routeIsHome={showHomeList}
+                                        home={<MySpreadsheetsList />}
+                                        editor={
+                                          <>
+                                            <CollabDriver>
+                                              <div
+                                                className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
+                                                data-ribbon={ribbonCompact ? 'compact' : 'full'}
+                                                data-testid="app-shell"
+                                              >
+                                                <TitleBar />
+                                                <Toolbar />
+                                                <AutosaveRestoreBanner />
+                                                <DesktopRecoveryBanner />
+                                                <PreviewBanner />
+                                                {formulaBarVisible && <FormulaBar />}
+                                                <div className="grid-row">
+                                                  <main className="grid-host" data-testid="grid-host">
+                                                    <UniverSheet
+                                                      revision={meta.revision}
+                                                      initialSnapshot={initial}
+                                                    />
+                                                  </main>
+                                                  {tablesPanelVisible && <TablesPanel />}
+                                                  {outlinePanelVisible && <OutlinePanel />}
+                                                  {chartsPanelVisible && <ChartsPanel />}
+                                                  {pivotPanelVisible && <PivotFieldsPanel />}
+                                                  {watchPanelVisible && <WatchPanel />}
+                                                  {commentsPanelVisible && <CommentsPanel />}
+                                                  {historyPanelVisible && <VersionHistoryPanel />}
+                                                  {aiPanelVisible && <AiPanel />}
+                                                  <PanelRail />
+                                                </div>
+                                                <MobileActionBar />
+                                                <SheetTabs />
+                                                <StatusBar />
+                                                <PanelMutex />
+                                                {shareRoomOpen && (
+                                                  <CreateRoomDialog
+                                                    onClose={() => setShareRoomOpen(false)}
                                                   />
-                                                </main>
-                                                {tablesPanelVisible && <TablesPanel />}
-                                                {outlinePanelVisible && <OutlinePanel />}
-                                                {chartsPanelVisible && <ChartsPanel />}
-                                                {pivotPanelVisible && <PivotFieldsPanel />}
-                                                {watchPanelVisible && <WatchPanel />}
-                                                {commentsPanelVisible && <CommentsPanel />}
-                                                {historyPanelVisible && <VersionHistoryPanel />}
-                                                {aiPanelVisible && <AiPanel />}
-                                                <PanelRail />
+                                                )}
                                               </div>
-                                              <MobileActionBar />
-                                              <SheetTabs />
-                                              <StatusBar />
-                                              <PanelMutex />
-                                              {shareRoomOpen && (
-                                                <CreateRoomDialog
-                                                  onClose={() => setShareRoomOpen(false)}
-                                                />
-                                              )}
-                                            </div>
-                                          </CollabDriver>
-                                          {/* HomeScreen overlay only on the editor
-                                        branch — the dedicated /home view doesn't
-                                        need an overlay. */}
-                                          <HomeScreen
-                                            dismissed={homeDismissed}
-                                            onDismiss={() => setHomeDismissed(true)}
-                                          />
-                                        </>
-                                      }
-                                    />
-                                    <LoadingOverlay />
-                                    <ChartLayer />
-                                    <SparklineLayer />
-                                    <ShowFormulasLayer />
-                                    <TracePrecedentsLayer />
-                                  </PersonalAuthGate>
+                                            </CollabDriver>
+                                            {/* HomeScreen overlay only on the editor
+                                          branch — the dedicated /home view doesn't
+                                          need an overlay. */}
+                                            <HomeScreen
+                                              dismissed={homeDismissed}
+                                              onDismiss={() => setHomeDismissed(true)}
+                                            />
+                                          </>
+                                        }
+                                      />
+                                      <LoadingOverlay />
+                                      <ChartLayer />
+                                      <SparklineLayer />
+                                      <ShowFormulasLayer />
+                                      <TracePrecedentsLayer />
+                                    </PersonalAuthGate>
+                                  </DeskAuthGate>
                                 </OutlineProvider>
                               </SparklinesProvider>
                             </WatchProvider>

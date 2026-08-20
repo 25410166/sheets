@@ -12,7 +12,7 @@
 // Pending PKCE state/verifier may use sessionStorage only as a last-resort
 // for the duration of the pending auth flow (cleared on exchange).
 
-import { generateRandomUrlSafeString } from './crypto.ts';
+import { generateRandomUrlSafeString } from './crypto';
 
 // All keys are prefixed `csheet.` in the Rust token store.
 const PREFIX = 'csheet.';
@@ -31,9 +31,9 @@ export class SecureAuthStore {
     }
 
     // Tauri IPC (persistent secure storage)
-    if (typeof window !== 'undefined' && (window as DeskWindow).__deskApp__?.tokenGet) {
+    if (typeof window !== 'undefined' && (window as unknown as DeskWindow).__deskApp__?.tokenGet) {
       try {
-        const val = await (window as DeskWindow).__deskApp__!.tokenGet!(fullKey);
+        const val = await (window as unknown as DeskWindow).__deskApp__!.tokenGet!(fullKey);
         if (val != null) {
           SecureAuthStore.memCache.set(fullKey, val);
           return val;
@@ -56,9 +56,9 @@ export class SecureAuthStore {
     }
 
     // Persist via Tauri IPC
-    if (typeof window !== 'undefined' && (window as DeskWindow).__deskApp__?.tokenSet) {
+    if (typeof window !== 'undefined' && (window as unknown as DeskWindow).__deskApp__?.tokenSet) {
       try {
-        await (window as DeskWindow).__deskApp__!.tokenSet!(fullKey, value ?? '');
+        await (window as unknown as DeskWindow).__deskApp__!.tokenSet!(fullKey, value ?? '');
       } catch {
         // IPC unavailable – value stays in memory only
       }
@@ -194,7 +194,7 @@ export class SecureAuthStore {
 }
 
 // Minimal typing for window.__deskApp__
-interface DeskWindow extends Window {
+interface DeskWindow {
   __deskApp__?: {
     tokenGet?: (name: string) => Promise<string | null>;
     tokenSet?: (name: string, value: string) => Promise<void>;

@@ -4,7 +4,7 @@
 // Crypto primitives for CSheet desktop auth.
 // Identical algorithm to the CPDF auth package – same CookApps API contract.
 
-import type { LeasePayload } from './types.ts';
+import type { LeasePayload } from './types';
 
 // ─────────────────────────────── Base64 / Base64URL ──────────────────────────
 

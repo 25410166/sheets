@@ -14,22 +14,18 @@ import {
   generateRandomUrlSafeString,
   importPrivateKeyJwk,
   verifyLeaseTokenOffline,
-} from './crypto.ts';
-import { SecureAuthStore } from './store.ts';
+} from './crypto';
+import { SecureAuthStore } from './store';
 import type {
   DesktopAuthExchangeResponse,
   DesktopAuthStartResponse,
   DesktopSessionResponse,
   LeasePayload,
-} from './types.ts';
+} from './types';
 
 // ─────────────── HTTP fetch via Tauri native_fetch or browser fetch ───────────
 
 type HttpFetcher = (url: string, init: RequestInit) => Promise<Response>;
-
-function defaultFetcher(url: string, init: RequestInit): Promise<Response> {
-  return fetch(url, init);
-}
 
 /**
  * Route HTTP calls through Tauri native_fetch when running inside the shell.

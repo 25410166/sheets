@@ -11,7 +11,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -73,7 +72,6 @@ export function DeskAuthProvider({ children }: { children: ReactNode }) {
 
 function DeskAuthProviderInner({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DeskAuthState>({ kind: 'checking' });
-  const pendingCallback = useRef<string | null>(null);
 
   // ── Startup auth check ────────────────────────────────────────────────────
 
@@ -209,8 +207,11 @@ function DeskAuthProviderInner({ children }: { children: ReactNode }) {
 
     let unlisten: (() => void) | null = null;
     void tauri.event
-      .listen('csheet:deeplink', (evt: { payload: { url: string } }) => {
-        void handleCallback(evt.payload.url);
+      .listen('csheet:deeplink', (evt: { payload: unknown }) => {
+        const payload = evt.payload as { url?: string } | undefined;
+        if (payload?.url) {
+          void handleCallback(payload.url);
+        }
       })
       .then((fn) => { unlisten = fn; });
 
