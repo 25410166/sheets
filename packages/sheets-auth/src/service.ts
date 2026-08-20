@@ -90,6 +90,10 @@ export class AuthService {
     this.httpFetch = opts.httpFetch ?? makeTauriFetcher();
   }
 
+  public hasPublicKey(): boolean {
+    return Boolean(this.leasePublicKeyBase64);
+  }
+
   public getBaseUrl(): string {
     return this.baseUrl;
   }

@@ -128,7 +128,8 @@ test('mint a password-protected secure link → row shows the password badge', a
   await page.reload();
   await waitForSignedInLanding(page);
   const firstFile = page.locator('[data-testid^="home-file-row-"]').first();
-  if (await firstFile.count()) await firstFile.click();
+  await firstFile.waitFor({ timeout: 15_000 });
+  await firstFile.click();
   await page.locator('[id^="univer-sheet-main-canvas_"]').waitFor({ timeout: 30_000 });
   await dismissHomeIfPresent(page);
 
