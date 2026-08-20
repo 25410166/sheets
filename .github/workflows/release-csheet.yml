@@ -17,6 +17,9 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  NODE_OPTIONS: "--max-old-space-size=8192"
+
 jobs:
   build-tauri:
     name: Build (${{ matrix.title }})

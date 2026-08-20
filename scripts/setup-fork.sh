@@ -61,7 +61,9 @@ echo "==> building fork"
 # ui-adapter-vue3, sheets-find-replace, …), failing the whole job for no real
 # reason. turbo caches successful packages, so a retry only rebuilds the ones
 # that failed → fast and reliable. Retry up to 3x before giving up.
-fork_build() { ( cd "$FORK_DIR" && pnpm build ); }
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
+
+fork_build() { ( cd "$FORK_DIR" && pnpm build -- --concurrency 4 ); }
 attempt=1
 until fork_build; do
   if [ "$attempt" -ge 3 ]; then
