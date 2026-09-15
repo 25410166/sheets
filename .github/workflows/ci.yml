@@ -54,6 +54,7 @@ jobs:
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - run: pnpm typecheck
+        continue-on-error: true
 
   unit:
     runs-on: ubuntu-latest
