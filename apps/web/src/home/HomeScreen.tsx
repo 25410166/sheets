@@ -238,7 +238,7 @@ export function HomeScreen({
         <div className="home__sidebar-top">
           <span className="home__brand">
             <img src={sheetsMark} alt="" className="home__brand-mark" width={26} height={33} />
-            <span className="home__brand-name">Casual Sheets</span>
+            <span className="home__brand-name">CSheets</span>
           </span>
           <button
             type="button"

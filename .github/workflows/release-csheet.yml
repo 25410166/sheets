@@ -1,14 +1,20 @@
-name: Release CSheet Desktop
+name: Release CSheets Desktop
 
 on:
   push:
+    branches:
+      - main
     tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
       - 'csheet-v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. csheet-v1.0.0)'
-        required: true
+        description: 'Release tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+        type: string
 
 concurrency:
   group: csheet-release-${{ github.ref }}
@@ -31,12 +37,15 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             title: Windows-x64
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            title: macOS-Intel
+            args: '--target x86_64-pc-windows-msvc --bundles nsis'
           - platform: macos-latest
             target: aarch64-apple-darwin
             title: macOS-AppleSilicon
+            args: '--target aarch64-apple-darwin --bundles dmg'
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            title: macOS-Intel
+            args: '--target x86_64-apple-darwin --bundles dmg'
 
     steps:
       - name: Checkout repository
@@ -79,31 +88,29 @@ jobs:
       - name: Build web frontend
         env:
           VITE_COOKAPPS_BASE_URL: https://cookapps.net
-          VITE_DESKTOP_LEASE_PUBLIC_KEY_BASE64: ${{ secrets.DESKTOP_LEASE_PUBLIC_KEY_BASE64 }}
+          VITE_DESKTOP_LEASE_PUBLIC_KEY_BASE64: ${{ secrets.DESKTOP_LEASE_PUBLIC_KEY_BASE64 || 'MCowBQYDK2VwAyEAvSTxJ6EC0pASM2tyZYWRB7MZ7KTw/g3g03FwGPIh+EM=' }}
         run: pnpm --filter @sheet/web build
 
       - name: Build Tauri bundle
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'CSheet ${{ github.ref_name }}'
+          tagName: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'v1.0.0' }}
+          releaseName: ${{ format('CSheets {0}', inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'v1.0.0') }}
           releaseBody: |
-            ## CSheet Desktop Release
+            ## CSheets Desktop Release
 
             Supported platforms: Windows x64, macOS Intel, macOS Apple Silicon.
 
             ### Installation
-            - **Windows**: run the `.exe` (NSIS) or `.msi` installer
-            - **macOS**: open the `.dmg` and drag CSheet to Applications
+            - **Windows**: Run `CSheets-windows-x64-nsis.exe` setup
+            - **macOS**: Open the `.dmg` and drag CSheets to Applications
           releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: ${{ matrix.args }}
           tauriScript: pnpm tauri
           projectPath: .
+          releaseAssetNamePattern: CSheets-[platform]-[arch]-[bundle][ext]
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: CSheets-${{ matrix.title }}-[bundle]

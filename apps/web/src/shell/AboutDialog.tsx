@@ -30,7 +30,7 @@ const COLLAB_BUILD: boolean = Boolean((globalThis as any).__COLLAB_BUILD__);
 export function AboutDialog({ onClose }: Props) {
   return (
     <Dialog
-      title="About Casual Sheets"
+      title="About CSheets"
       onClose={onClose}
       data-testid="about-dialog"
       footer={
@@ -52,40 +52,27 @@ export function AboutDialog({ onClose }: Props) {
           height={56}
           className="about__icon"
         />
-        <h3 className="about__title">Casual Sheets</h3>
+        <h3 className="about__title">CSheets</h3>
         <p className="about__tagline">
-          A web spreadsheet that feels like Excel, built on{' '}
-          <a href="https://github.com/dream-num/univer" target="_blank" rel="noreferrer">
-            Univer OSS
-          </a>
-          .
+          Fast, powerful spreadsheet powered by CookApps.
         </p>
         <dl className="about__facts">
           <dt>Version</dt>
           <dd data-testid="about-version">{APP_VERSION}</dd>
-          <dt>Edition</dt>
-          <dd data-testid="about-edition">
-            {COLLAB_BUILD ? 'Self-hosted (co-editing enabled)' : 'Single-user (hosted demo)'}
-          </dd>
-          <dt>Source</dt>
+          <dt>Platform</dt>
+          <dd>CookApps Office Suite</dd>
+          <dt>Website</dt>
           <dd>
             <a
-              href="https://github.com/CasualOffice/sheets"
+              href="https://cookapps.net"
               target="_blank"
               rel="noreferrer"
             >
-              github.com/CasualOffice/sheets
+              cookapps.net
             </a>
           </dd>
-          <dt>Self-host</dt>
-          <dd>
-            <code>docker run -p 3000:3000 casualoffice/sheets</code> —{' '}
-            <a href="https://casualoffice.org/#work" target="_blank" rel="noreferrer">guide</a>
-          </dd>
           <dt>Engine</dt>
-          <dd>Univer 0.22.1 — 478 formula functions, ExcelJS for xlsx I/O</dd>
-          <dt>License</dt>
-          <dd>Apache-2.0</dd>
+          <dd>Univer 0.25.0 — formula functions, ExcelJS for xlsx I/O</dd>
         </dl>
       </div>
     </Dialog>

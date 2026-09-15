@@ -3,63 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Casual Sheets — Excel-flavored web spreadsheet · Open source</title>
+    <title>CSheets — CookApps Spreadsheet</title>
     <meta
       name="description"
-      content="Open-source web spreadsheet with .xlsx round-trip, real-time co-editing, pivot tables, 8 chart types, sparklines, version history, and a self-hosted Docker image. Looks and behaves like Microsoft Excel. Apache-2.0."
+      content="CSheets – Fast, powerful desktop & web spreadsheet powered by CookApps."
     />
-    <meta name="author" content="Sachin Sarwa" />
-    <meta name="theme-color" content="#0e7490" />
+    <meta name="author" content="CookApps" />
+    <meta name="theme-color" content="#16a34a" />
     <meta name="color-scheme" content="light dark" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Casual Sheets" />
-    <meta property="og:title" content="Casual Sheets — Excel-flavored web spreadsheet" />
+    <meta property="og:site_name" content="CSheets" />
+    <meta property="og:title" content="CSheets — CookApps Spreadsheet" />
     <meta
       property="og:description"
-      content="Open .xlsx in the browser, edit like the web, save back. Real-time co-editing. Self-host via Docker. Open source (Apache-2.0)."
+      content="Fast, powerful desktop & web spreadsheet powered by CookApps."
     />
-    <meta property="og:url" content="https://sheet.casualoffice.org/" />
-    <meta property="og:image" content="https://sheet.casualoffice.org/og.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Casual Sheets — Excel-flavored web spreadsheet by Sachin Sarwa" />
+    <meta property="og:url" content="https://cookapps.net/" />
     <meta property="og:locale" content="en_US" />
 
     <!-- Twitter / X card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Casual Sheets — Excel-flavored web spreadsheet" />
+    <meta name="twitter:title" content="CSheets — CookApps Spreadsheet" />
     <meta
       name="twitter:description"
-      content="Open .xlsx in the browser, edit like the web, save back. Real-time co-editing. Self-host via Docker. Open source."
-    />
-    <meta name="twitter:image" content="https://sheet.casualoffice.org/og.png" />
-    <meta name="twitter:image:alt" content="Casual Sheets — Excel-flavored web spreadsheet" />
-
-    <!-- Discoverability — explicit AI-crawler opt-in lives in /robots.txt -->
-    <meta
-      name="robots"
-      content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
-    />
-    <meta
-      name="keywords"
-      content="web spreadsheet, Excel for the web, xlsx editor, ods editor, csv editor, open-source spreadsheet, self-hosted spreadsheet, real-time spreadsheet, collaborative spreadsheet, Univer OSS, Yjs, Hocuspocus, Docker spreadsheet, pivot tables, charts, sparklines, VBA macros, Apache-2.0, Casual Sheets, Sachin Sarwa"
+      content="Fast, powerful desktop & web spreadsheet powered by CookApps."
     />
 
-    <link rel="canonical" href="https://sheet.casualoffice.org/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GS9G3SKWL7"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-GS9G3SKWL7');
-    </script>
 
     <!--
       JSON-LD: SoftwareApplication + Person + WebSite.
@@ -74,62 +47,16 @@
           {
             "@type": "SoftwareApplication",
             "@id": "https://sheet.casualoffice.org/#app",
-            "name": "Casual Sheets",
-            "alternateName": "casual-sheets",
+            "name": "CSheets",
+            "alternateName": "csheets",
             "applicationCategory": "BusinessApplication",
             "applicationSubCategory": "SpreadsheetApplication",
-            "operatingSystem": "Web Browser, Docker (Linux/amd64, Linux/arm64)",
-            "url": "https://sheet.casualoffice.org/",
-            "downloadUrl": "https://hub.docker.com/r/casualoffice/sheets",
-            "codeRepository": "https://github.com/CasualOffice/sheets",
-            "softwareVersion": "0.1.1",
-            "license": "https://www.apache.org/licenses/LICENSE-2.0",
-            "description": "Open-source, self-hostable web spreadsheet that opens and saves native .xlsx (plus .ods, .csv, .tsv) with real-time multi-user co-editing. Behaves like Microsoft Excel — ribbon, formula bar, file-centric workflow. Includes pivot tables with drill-down, 8 chart types with trendlines, sparklines (line/column/win-loss), version history with auto-snapshots, conditional formatting, data validation, and .xlsm macro passthrough that round-trips byte-equal.",
-            "image": "https://sheet.casualoffice.org/og.png",
-            "screenshot": "https://sheet.casualoffice.org/og.png",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD",
-              "availability": "https://schema.org/InStock"
-            },
-            "author": { "@id": "https://casualoffice.org/#person" },
-            "creator": { "@id": "https://casualoffice.org/#person" },
-            "publisher": { "@id": "https://casualoffice.org/#person" },
-            "featureList": [
-              "Open and save native .xlsx, .ods, .csv, .tsv files",
-              "Real-time multi-user co-editing via Yjs and Hocuspocus",
-              "Pivot tables with multi-row compact layout and drill-down (Ctrl+Shift+D)",
-              "8 chart types with trendlines, date-axis detection, per-series colour overrides",
-              "Sparklines: line, column, and win-loss",
-              "Version history with auto-snapshots and one-click restore",
-              "Conditional formatting and data validation",
-              ".xlsm macro passthrough — vbaProject.bin round-trips byte-equal",
-              "Self-hostable Docker image (single port, embedded WebSocket gateway)",
-              "Dark mode bridged into Univer's canvas chrome",
-              "Anonymous room URLs with optional password-protected co-edit",
-              "11-template home gallery (Personal / Work / Finance / Education)"
-            ],
-            "softwareRequirements": "Modern desktop browser (Chrome, Firefox, Safari, Edge). Docker 20+ for self-hosting.",
-            "isAccessibleForFree": true,
-            "keywords": "spreadsheet, xlsx editor, open source, real-time, co-editing, self-hosted, Docker, Univer OSS, Yjs, pivot tables, charts"
-          },
-          {
-            "@type": "Person",
-            "@id": "https://casualoffice.org/#person",
-            "name": "Sachin Sarwa",
-            "url": "https://casualoffice.org/",
-            "sameAs": [
-              "https://github.com/CasualOffice",
-              "https://hub.docker.com/u/casualoffice"
-            ]
-          },
-          {
-            "@type": "WebSite",
-            "@id": "https://sheet.casualoffice.org/#website",
-            "url": "https://sheet.casualoffice.org/",
-            "name": "Casual Sheets",
-            "publisher": { "@id": "https://casualoffice.org/#person" }
+            "operatingSystem": "Windows, macOS, Web",
+            "url": "https://cookapps.net/",
+            "softwareVersion": "1.0.0",
+            "license": "https://cookapps.net/",
+            "description": "Fast, powerful desktop and web spreadsheet powered by CookApps.",
+            "author": { "@type": "Organization", "name": "CookApps", "url": "https://cookapps.net/" }
           }
         ]
       }

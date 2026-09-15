@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0",
-  "productName": "CSheet",
+  "productName": "CSheets",
   "version": "1.0.0",
   "identifier": "net.cookapps.csheet",
   "build": {
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "CSheet",
+        "title": "CSheets",
         "width": 1440,
         "height": 900,
         "minWidth": 900,

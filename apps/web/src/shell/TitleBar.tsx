@@ -187,13 +187,13 @@ export function TitleBar() {
           e.preventDefault();
           navigate('/home');
         }}
-        aria-label="Casual Sheets — home"
-        title="Casual Sheets"
+        aria-label="CSheets — home"
+        title="CSheets"
       >
         <img
           // Shared design-system suite mark (Phase 4).
           src={sheetsMark}
-          alt="Casual Sheets"
+          alt="CSheets"
           className="titlebar__brand-icon"
           width={28}
           height={36}
@@ -273,27 +273,14 @@ export function TitleBar() {
             </div>
           </>
         )}
-        {/* Desktop build: a "Home" affordance that brings the Casual Office
-            launcher window forward (the launcher IS the home screen). Desktop
-            only — web has its own /home brand link above. */}
+        {/* Desktop build: Home navigation button */}
         {isDesktop() && (
           <IconButton
             size="md"
             icon="home"
-            label="Back to Casual Office"
-            data-testid="titlebar-back-to-launcher"
-            onClick={() => {
-              try {
-                // Top-level desktop mode: __TAURI__.core.invoke is direct.
-                (
-                  window as unknown as {
-                    __TAURI__?: { core?: { invoke?: (cmd: string) => Promise<unknown> } };
-                  }
-                ).__TAURI__?.core?.invoke?.('focus_launcher_window')?.catch?.(() => undefined);
-              } catch {
-                /* best-effort — never break the title bar */
-              }
-            }}
+            label="Home — My Spreadsheets"
+            data-testid="titlebar-home"
+            onClick={() => navigate('/home')}
           />
         )}
         {/* Desktop build: a local-user chip stands in for the collab cluster —

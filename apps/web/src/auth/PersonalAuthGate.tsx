@@ -18,6 +18,7 @@ import { type ReactNode } from 'react';
 import { useAuth } from './auth-context';
 import { detectWopiContext } from '../file-source/wopi-file-source';
 import { useRoute } from '../router';
+import { isDesktop } from '../desk-bridge-bootstrap';
 import { LoginView } from './LoginView';
 import { SignupView } from './SignupView';
 import './auth.css';
@@ -44,6 +45,9 @@ import './auth.css';
 export function PersonalAuthGate({ children }: { children: ReactNode }) {
   const { state, refresh } = useAuth();
   const route = useRoute();
+
+  // Desktop shell uses CookApps desktop auth via DeskAuthGate, never the self-hosted personal gate.
+  if (isDesktop()) return <>{children}</>;
 
   // Embedded-host (WOPI) deploys carry a URL access token and are
   // authenticated against the embedding host's identity, not the

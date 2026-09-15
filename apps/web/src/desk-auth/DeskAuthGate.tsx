@@ -42,8 +42,27 @@ function DeskAuthGateInner({ children }: Props) {
 
         {/* Logo */}
         <div className="da-logo">
-          <div className="da-logo-icon" aria-hidden="true">📊</div>
-          <div className="da-logo-text">C<span>Sheet</span></div>
+          <div className="da-logo-icon" aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="34" height="34" viewBox="0 0 512 512" fill="none">
+              <g transform="translate(64, 16) scale(12)">
+                <path d="M2 0C0.9 0 0 0.9 0 2V38C0 39.1 0.9 40 2 40H30C31.1 40 32 39.1 32 38V10L22 0H2Z" fill="#16a34a"/>
+                <path d="M22 0L32 10H24C22.9 10 22 9.1 22 8V0Z" fill="#14532d"/>
+                <rect x="7" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="11.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="16" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="20.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="7" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="11.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="16" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="20.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="7" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="11.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="16" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+                <rect x="20.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
+              </g>
+            </svg>
+          </div>
+          <div className="da-logo-text">C<span>Sheets</span></div>
         </div>
 
         {state.kind === 'checking' && (
@@ -97,7 +116,7 @@ function CheckingState() {
   return (
     <>
       <h1 className="da-title">Checking your account…</h1>
-      <p className="da-subtitle">Please wait while CSheet verifies your session.</p>
+      <p className="da-subtitle">Please wait while CSheets verifies your session.</p>
       <div className="da-status da-status--neutral">
         <div className="da-spinner" style={{ borderColor: 'rgba(59,130,246,0.3)', borderTopColor: '#3b82f6' }} aria-hidden="true" />
         <div className="da-status__body">
@@ -149,9 +168,9 @@ function UnauthenticatedState({
 
   return (
     <>
-      <h1 className="da-title">Sign in to CSheet</h1>
+      <h1 className="da-title">Sign in to CSheets</h1>
       <p className="da-subtitle">
-        Connect your CookApps account to access CSheet on this device.
+        Connect your CookApps account to access CSheets on this device.
       </p>
 
       {loginState === 'idle' && (
@@ -246,9 +265,9 @@ function UpgradeRequiredState({
       <div className="da-status da-status--warn">
         <span className="da-status__icon" aria-hidden="true">⭐</span>
         <div className="da-status__body">
-          <p className="da-status__title">CSheet requires an active subscription</p>
+          <p className="da-status__title">CSheets requires an active subscription</p>
           <p className="da-status__desc">
-            Upgrade your CookApps plan to use CSheet. Your current plan does not include access to this app.
+            Upgrade your CookApps plan to use CSheets. Your current plan does not include access to this app.
           </p>
         </div>
       </div>
@@ -325,7 +344,7 @@ function IpReauthState({
         <div className="da-status__body">
           <p className="da-status__title">Your network IP address has changed</p>
           <p className="da-status__desc">
-            For security, CSheet requires you to sign in again after switching networks.
+            For security, CSheets requires you to sign in again after switching networks.
           </p>
         </div>
       </div>

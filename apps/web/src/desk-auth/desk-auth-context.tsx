@@ -23,8 +23,12 @@ import type { UserPlanInfo, EntitlementInfo, DeviceInfo, DesktopSessionResponse 
 const BASE_URL =
   (import.meta.env.VITE_COOKAPPS_BASE_URL as string | undefined) ?? 'https://cookapps.net';
 
+const DEFAULT_LEASE_PUBLIC_KEY =
+  'MCowBQYDK2VwAyEAvSTxJ6EC0pASM2tyZYWRB7MZ7KTw/g3g03FwGPIh+EM=';
+
 const LEASE_PUBLIC_KEY =
-  (import.meta.env.VITE_DESKTOP_LEASE_PUBLIC_KEY_BASE64 as string | undefined) ?? null;
+  (import.meta.env.VITE_DESKTOP_LEASE_PUBLIC_KEY_BASE64 as string | undefined) ||
+  DEFAULT_LEASE_PUBLIC_KEY;
 
 export const authService = new AuthService({
   baseUrl: BASE_URL,

@@ -122,7 +122,7 @@ function saveStoredMcp(list: StoredMcp[]): void {
   }
 }
 
-const SYSTEM_PROMPT = `You are an AI assistant embedded in Casual Sheets, a spreadsheet app.
+const SYSTEM_PROMPT = `You are an AI assistant embedded in CSheets, a spreadsheet app.
 
 You help users read, analyze, and edit their spreadsheets using a structured tool catalog.
 
