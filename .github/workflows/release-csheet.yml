@@ -49,7 +49,7 @@ jobs:
         run: ./scripts/setup-fork.sh
 
       - name: Install pnpm dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build SDK
         run: pnpm --filter @casualoffice/sheets build

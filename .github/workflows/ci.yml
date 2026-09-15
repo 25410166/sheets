@@ -32,7 +32,7 @@ jobs:
           cache: pnpm
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - run: pnpm lint
@@ -50,7 +50,7 @@ jobs:
           cache: pnpm
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - run: pnpm typecheck
@@ -68,7 +68,7 @@ jobs:
           cache: pnpm
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - run: pnpm test:unit
@@ -90,7 +90,7 @@ jobs:
           cache: pnpm
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - name: Cache Playwright browsers
@@ -127,7 +127,7 @@ jobs:
           cache: pnpm
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - name: Cache Playwright browsers
@@ -165,7 +165,7 @@ jobs:
           cache: pnpm
       - name: Setup Univer fork (build + swap package.jsons)
         run: ./scripts/setup-fork.sh
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --no-frozen-lockfile
       - name: Build SDK (packages/sdk dist)
         run: pnpm --filter @casualoffice/sheets build
       - name: Cache Playwright browsers

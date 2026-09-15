@@ -40,7 +40,7 @@ jobs:
         run: ./scripts/setup-fork.sh
 
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       # apps/web imports `@casualoffice/sheets/xlsx`, whose types
       # resolve through packages/sdk/dist/. tsc + vite both fail with
