@@ -225,6 +225,27 @@ export function App() {
   const [showFormulas, setShowFormulas] = useState(false);
   const [loading, setLoading] = useState<LoadingState | null>(null);
 
+  const updateLoading = useCallback((next: Partial<LoadingState> | null) => {
+    if (next === null) {
+      setLoading(null);
+      return;
+    }
+    setLoading((prev) => {
+      if (!prev) {
+        if (!next.fileName || !next.phase) return prev;
+        return {
+          fileName: next.fileName,
+          phase: next.phase,
+          sizeBytes: next.sizeBytes,
+          startedAt: Date.now(),
+          error: next.error,
+          onRetry: next.onRetry,
+        };
+      }
+      return { ...prev, ...next, startedAt: prev.startedAt };
+    });
+  }, []);
+
   // Version-history preview state. `preview` is the visible shape;
   // `previewSavedRef` keeps the pre-preview workbook off React state
   // so a multi-MB snapshot isn't duplicated when we already have one
@@ -517,13 +538,13 @@ export function App() {
         setActiveTabId(targetId);
         setView('editor');
         replaceWorkbook(data, format);
-        setLoading(null);
+        updateLoading(null);
       } catch (err) {
         console.error('[openFilePath] failed', err);
-        setLoading({ fileName, phase: 'reading', startedAt, error: String(err) });
+        updateLoading({ fileName, phase: 'reading', error: String(err) });
       }
     },
-    [tabs, view, getLiveSnapshot, handleSelectTab, replaceWorkbook, setLoading],
+    [tabs, view, getLiveSnapshot, handleSelectTab, replaceWorkbook, updateLoading],
   );
 
   const handleOpenFileObject = useCallback(
@@ -537,9 +558,9 @@ export function App() {
         }
       }
 
-      setLoading({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
+      updateLoading({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
       try {
-        const data = await openSpreadsheetFile(file, (phase) => setLoading({ phase }));
+        const data = await openSpreadsheetFile(file, (phase) => updateLoading({ phase }));
         const format = inferFormat(file.name);
         const isSinglePristine =
           tabs.length === 1 &&
@@ -568,17 +589,17 @@ export function App() {
         setActiveTabId(targetId);
         setView('editor');
         replaceWorkbook(data, format);
-        setLoading(null);
+        updateLoading(null);
       } catch (err) {
         console.error('[handleOpenFileObject] failed', err);
-        setLoading({
+        updateLoading({
           fileName: file.name,
           phase: 'reading',
           error: err instanceof Error ? err.message : 'Could not open this file.',
         });
       }
     },
-    [view, getLiveSnapshot, tabs, replaceWorkbook, setLoading],
+    [view, getLiveSnapshot, tabs, replaceWorkbook, updateLoading],
   );
 
   const handleSelectTemplate = useCallback(
@@ -597,16 +618,16 @@ export function App() {
       }
 
       const url = `${import.meta.env.BASE_URL ?? '/'}templates/${t.id}.xlsx`;
-      setLoading({ fileName: `${t.name}.xlsx`, phase: 'reading' });
+      updateLoading({ fileName: `${t.name}.xlsx`, phase: 'reading' });
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Template fetch failed: ${res.status}`);
         const sizeBytes = Number(res.headers.get('content-length') ?? '0') || undefined;
-        setLoading({ phase: 'parsing', sizeBytes });
+        updateLoading({ phase: 'parsing', sizeBytes });
         const buf = await res.arrayBuffer();
         const data = (await xlsxToWorkbookData(buf)) as IWorkbookData;
         data.name = t.name;
-        setLoading({ phase: 'mounting' });
+        updateLoading({ phase: 'mounting' });
 
         const isSinglePristine =
           tabs.length === 1 &&
@@ -635,10 +656,10 @@ export function App() {
         setActiveTabId(targetId);
         setView('editor');
         replaceWorkbook(data, 'xlsx');
-        setLoading(null);
+        updateLoading(null);
       } catch (err) {
         console.error('[home] template open failed', err);
-        setLoading({
+        updateLoading({
           fileName: `${t.name}.xlsx`,
           phase: 'reading',
           error: err instanceof Error ? err.message : 'Failed to open template.',
@@ -646,7 +667,7 @@ export function App() {
         });
       }
     },
-    [view, getLiveSnapshot, tabs, handleNewTab, replaceWorkbook, setLoading],
+    [view, getLiveSnapshot, tabs, handleNewTab, replaceWorkbook, updateLoading],
   );
 
   // Desktop shell initial boot load
