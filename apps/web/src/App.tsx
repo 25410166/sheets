@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { IWorkbookData, ICommandInfo, IExecutionOptions } from '@univerjs/core';
 import { ICommandService } from '@univerjs/core';
+import type { FUniver } from '@univerjs/core/facade';
 import { xlsxToWorkbookData } from './xlsx';
 import { odsToWorkbookData, csvToWorkbookData, tsvToWorkbookData, psvToWorkbookData } from './ods';
 import { isDesktop } from './desk-bridge-bootstrap';
@@ -43,6 +44,10 @@ import { OutlineProvider } from './outline/outline-context';
 import { OutlinePanel } from './shell/OutlinePanel';
 import { CollabDriver } from './collab/CollabDriver';
 import { CreateRoomDialog } from './shell/CreateRoomDialog';
+import { DocumentTabBar, type DocumentTabInfo } from './shell/DocumentTabBar';
+import { DeskAuthDialog } from './desk-auth';
+import { openSpreadsheetFile } from './shell/file-actions';
+import type { Template } from './home/registry';
 import { LoadingOverlay } from './shell/LoadingOverlay';
 import { LoadingContext, type LoadingCtxValue, type LoadingState } from './loading-context';
 import { BusyProvider } from './busy-context';
@@ -82,26 +87,60 @@ import { useVersionHistoryCapture } from './version-history/useVersionHistoryCap
 import { useTouchPan } from './touch/useTouchPan';
 import { MobileActionBar } from './shell/MobileActionBar';
 import { navigate, useRoute } from './router';
-import { MySpreadsheetsList } from './home/MySpreadsheetsList';
 import { useUniverAPI } from './use-univer';
 
+export interface SheetTab {
+  id: string;
+  name: string;
+  filePath: string | null;
+  format: WorkbookFormat | null;
+  snapshot: IWorkbookData;
+  isDirty: boolean;
+  revision: number;
+  serverFileId?: string | null;
+  serverEtag?: string | null;
+}
+
+function inferFormat(filename: string): WorkbookFormat {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.ods')) return 'ods';
+  if (lower.endsWith('.csv')) return 'csv';
+  if (lower.endsWith('.tsv') || lower.endsWith('.tab')) return 'tsv';
+  if (lower.endsWith('.psv')) return 'psv';
+  return 'xlsx';
+}
+
+function UniverApiSync({ onApi }: { onApi: (api: FUniver | null) => void }): ReactNode {
+  const api = useUniverAPI();
+  useEffect(() => {
+    onApi(api);
+  }, [api, onApi]);
+  return null;
+}
+
 export function App() {
-  // Route gate. UX_AUDIT.md §1, §5 — personal-mode IA needs `/home` to
-  // render the file picker, not the always-mounted editor. The editor
-  // tree still mounts for every other route (sheet / sheet-draft / room
-  // / unknown) so workbook open / collab / autosave continue working
-  // exactly as before; the only behavioural change is that `/home` no
-  // longer shows the empty default workbook with an overlay.
   const route = useRoute();
   const showHomeList = route.kind === 'home' || route.kind === 'templates';
 
-  // Snapshot lives in a ref, NOT React state — see workbook-context.tsx.
-  // Stage 3 of the large-file pipeline: keeping a multi-MB IWorkbookData
-  // tree in React state alongside Univer's own copy doubled the peak heap
-  // on big files. The ref carries the snapshot for the brief window
-  // between replaceWorkbook and UniverSheet's swap effect, then it's
-  // cleared so the data becomes GC-eligible.
   const initial = useMemo(() => emptyWorkbook(), []);
+  const initialFilePath = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return (
+      (window as unknown as { __INITIAL_FILE_PATH__?: string }).__INITIAL_FILE_PATH__ ??
+      new URLSearchParams(window.location.search).get('file') ??
+      (isDesktop() ? window.__deskApp__?.filePath : null) ??
+      null
+    );
+  }, []);
+
+  const [view, setView] = useState<'home' | 'editor'>(() => {
+    if (typeof window === 'undefined') return 'home';
+    if (initialFilePath) return 'editor';
+    if (isDesktop()) return 'home';
+    if (route.kind === 'home' || route.kind === 'templates') return 'home';
+    return 'editor';
+  });
+
   const snapshotRef = useRef<IWorkbookData | null>(initial);
   const [meta, setMeta] = useState<WorkbookMeta>(() => ({
     id: initial.id ?? `wb-${Date.now()}`,
@@ -112,46 +151,60 @@ export function App() {
     serverEtag: null,
   }));
 
-  // In the desktop shell the launcher window IS the home screen, so the
-  // editor must boot straight into the workbook — never flash the HomeScreen
-  // template-gallery overlay. Start dismissed when running under the desk
-  // bridge (web keeps the original false → overlay-until-probe behaviour).
-  const [homeDismissed, setHomeDismissed] = useState(() => isDesktop());
+  const [tabs, setTabs] = useState<SheetTab[]>(() => {
+    if (initialFilePath) {
+      const fileName = initialFilePath.split(/[\\/]/).pop() || 'Workbook.xlsx';
+      const name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab|psv)$/i, '');
+      const snap = emptyWorkbook();
+      snap.name = name;
+      return [
+        {
+          id: 'tab-1',
+          name,
+          filePath: initialFilePath,
+          format: inferFormat(fileName),
+          snapshot: snap,
+          isDirty: false,
+          revision: 0,
+          serverFileId: null,
+          serverEtag: null,
+        },
+      ];
+    }
+    return [
+      {
+        id: 'tab-1',
+        name: initial.name ?? 'Untitled',
+        filePath: null,
+        format: null,
+        snapshot: initial,
+        isDirty: false,
+        revision: 0,
+        serverFileId: null,
+        serverEtag: null,
+      },
+    ];
+  });
+  const [activeTabId, setActiveTabId] = useState<string>('tab-1');
+  const activeTabIdRef = useRef(activeTabId);
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId;
+  }, [activeTabId]);
 
-  // Mirror the open file's name into the browser tab/window title,
-  // Office-style ("Book1 — Casual Sheets"). On `/home` or `/templates`
-  // keep the original marketing/SEO title (captured once at mount) so
-  // bookmarks and shared links stay descriptive. Gating on `route.kind`
-  // (not `homeDismissed`) means the title flips the moment the URL
-  // changes, including via back/forward — UX_AUDIT.md §2.12.
-  const baseTitle = useRef(document.title);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const univerApiRef = useRef<FUniver | null>(null);
+
+  // Sync window/document title with active tab / Home
   useEffect(() => {
-    document.title = showHomeList
-      ? baseTitle.current
-      : `${meta.name || 'Untitled'} — Casual Sheets`;
-  }, [showHomeList, meta.name]);
-  // Auto-dismiss the home screen when an autosave record exists, so
-  // the AutosaveRestoreBanner is visible on first paint instead of
-  // being hidden behind the template gallery. Best-effort IDB probe —
-  // failures (private mode, locked DB) leave home visible, which is
-  // the conservative default.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const { readAutosave } = await import('./autosave/store');
-        const rec = await readAutosave();
-        if (!cancelled && rec) {
-          setHomeDismissed(true);
-        }
-      } catch {
-        /* keep home visible on probe failure */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const isHome = view === 'home' || showHomeList;
+    const APP_NAME = 'Casual Sheets';
+    const title = isHome
+      ? APP_NAME
+      : `${meta.name || 'Untitled'} — ${APP_NAME}`;
+    document.title = title;
+    const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
+    bridge?.setWindowTitle?.(title);
+  }, [view, showHomeList, meta.name]);
   const [formulaBarVisible, setFormulaBarVisible] = useState(true);
   const [ribbonCompact, setRibbonCompact] = useState<boolean>(() => {
     try {
@@ -287,26 +340,328 @@ export function App() {
     [],
   );
 
-  // When loaded inside the Casual Office Tauri shell (`?desk=1`), the
-  // desk-bridge bootstrap defines window.__deskApp__ with the file path
-  // the user opened. Read it through the bridge and replace the empty
-  // workbook. Guarded by isDesktop() AND the bridge presence, so this is
-  // a no-op in plain web — the effect returns immediately and never
-  // touches Univer state.
+  const getLiveSnapshot = useCallback((): IWorkbookData | null => {
+    const api = univerApiRef.current;
+    if (!api) return null;
+    try {
+      const wb = api.getActiveWorkbook();
+      if (!wb) return null;
+      return (wb.save() as unknown) as IWorkbookData;
+    } catch (err) {
+      console.warn('[tabs] failed to capture live snapshot', err);
+      return null;
+    }
+  }, []);
+
+  const handleSelectTab = useCallback(
+    (nextTabId: string) => {
+      if (nextTabId === activeTabId && view === 'editor') return;
+
+      if (view === 'editor' && activeTabId) {
+        const live = getLiveSnapshot();
+        if (live) {
+          setTabs((prev) =>
+            prev.map((t) => (t.id === activeTabId ? { ...t, snapshot: live } : t)),
+          );
+        }
+      }
+
+      const target = tabs.find((t) => t.id === nextTabId);
+      if (!target) return;
+
+      setActiveTabId(nextTabId);
+      setView('editor');
+      replaceWorkbook(target.snapshot, target.format, {
+        fileId: target.serverFileId ?? null,
+        etag: target.serverEtag ?? null,
+      });
+    },
+    [activeTabId, view, tabs, getLiveSnapshot, replaceWorkbook],
+  );
+
+  const handleHomeTab = useCallback(() => {
+    if (view === 'editor' && activeTabId) {
+      const live = getLiveSnapshot();
+      if (live) {
+        setTabs((prev) =>
+          prev.map((t) => (t.id === activeTabId ? { ...t, snapshot: live } : t)),
+        );
+      }
+    }
+    setView('home');
+  }, [view, activeTabId, getLiveSnapshot]);
+
+  const handleNewTab = useCallback(() => {
+    if (view === 'editor' && activeTabIdRef.current) {
+      const live = getLiveSnapshot();
+      if (live) {
+        setTabs((prev) =>
+          prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, snapshot: live } : t)),
+        );
+      }
+    }
+    const newId = 'tab-' + Date.now();
+    const newSnap = emptyWorkbook();
+    const name = `Workbook ${tabs.length + 1}`;
+    newSnap.name = name;
+    const newTab: SheetTab = {
+      id: newId,
+      name,
+      filePath: null,
+      format: null,
+      snapshot: newSnap,
+      isDirty: false,
+      revision: 0,
+      serverFileId: null,
+      serverEtag: null,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newId);
+    setView('editor');
+    replaceWorkbook(newSnap, null);
+  }, [view, getLiveSnapshot, tabs.length, replaceWorkbook]);
+
+  const handleCloseTab = useCallback(
+    (tabId: string) => {
+      const tabToClose = tabs.find((t) => t.id === tabId);
+      if (tabToClose?.isDirty) {
+        const confirmClose = window.confirm(
+          `Bảng tính "${tabToClose.name}" có thay đổi chưa lưu. Bạn có chắc muốn đóng không?`,
+        );
+        if (!confirmClose) return;
+      }
+
+      const nextTabs = tabs.filter((t) => t.id !== tabId);
+      setTabs(nextTabs);
+
+      if (nextTabs.length === 0) {
+        setActiveTabId('');
+        setView('home');
+        return;
+      }
+
+      if (activeTabId === tabId) {
+        const closedIndex = tabs.findIndex((t) => t.id === tabId);
+        const newActive = nextTabs[Math.max(0, closedIndex - 1)] || nextTabs[0];
+        setActiveTabId(newActive.id);
+        replaceWorkbook(newActive.snapshot, newActive.format, {
+          fileId: newActive.serverFileId ?? null,
+          etag: newActive.serverEtag ?? null,
+        });
+      }
+    },
+    [tabs, activeTabId, replaceWorkbook],
+  );
+
+  const openFilePath = useCallback(
+    async (filePath: string) => {
+      const existing = tabs.find(
+        (t) => t.filePath && t.filePath.toLowerCase() === filePath.toLowerCase(),
+      );
+      if (existing) {
+        handleSelectTab(existing.id);
+        return;
+      }
+
+      const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
+      if (!bridge?.isDesktop || !bridge.loadDocument) return;
+
+      const fileName = filePath.split(/[\\/]/).pop() || 'Workbook.xlsx';
+      const format = inferFormat(fileName);
+      const startedAt = Date.now();
+      try {
+        setLoading({ fileName, phase: 'reading', startedAt });
+        const buffer = await bridge.loadDocument(filePath);
+        setLoading({ fileName, phase: 'parsing', startedAt });
+        let data: IWorkbookData;
+        if (format === 'ods') data = await odsToWorkbookData(buffer);
+        else if (format === 'csv') data = await csvToWorkbookData(buffer);
+        else if (format === 'tsv') data = await tsvToWorkbookData(buffer);
+        else if (format === 'psv') data = await psvToWorkbookData(buffer);
+        else data = await xlsxToWorkbookData(buffer);
+        data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab|psv)$/i, '');
+
+        if (view === 'editor' && activeTabIdRef.current) {
+          const live = getLiveSnapshot();
+          if (live) {
+            setTabs((prev) =>
+              prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, snapshot: live } : t)),
+            );
+          }
+        }
+
+        const isSinglePristine =
+          tabs.length === 1 &&
+          tabs[0].filePath === null &&
+          !tabs[0].isDirty &&
+          (tabs[0].name === 'Untitled' || tabs[0].name.startsWith('Workbook')) &&
+          tabs[0].revision <= 1;
+
+        const targetId = isSinglePristine ? tabs[0].id : 'tab-' + Date.now();
+        const newTab: SheetTab = {
+          id: targetId,
+          name: data.name,
+          filePath,
+          format,
+          snapshot: data,
+          isDirty: false,
+          revision: 1,
+          serverFileId: null,
+          serverEtag: null,
+        };
+
+        setTabs((prev) => {
+          if (isSinglePristine) return [newTab];
+          return [...prev, newTab];
+        });
+        setActiveTabId(targetId);
+        setView('editor');
+        replaceWorkbook(data, format);
+        setLoading(null);
+      } catch (err) {
+        console.error('[openFilePath] failed', err);
+        setLoading({ fileName, phase: 'reading', startedAt, error: String(err) });
+      }
+    },
+    [tabs, view, getLiveSnapshot, handleSelectTab, replaceWorkbook, setLoading],
+  );
+
+  const handleOpenFileObject = useCallback(
+    async (file: File) => {
+      if (view === 'editor' && activeTabIdRef.current) {
+        const live = getLiveSnapshot();
+        if (live) {
+          setTabs((prev) =>
+            prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, snapshot: live } : t)),
+          );
+        }
+      }
+
+      setLoading({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
+      try {
+        const data = await openSpreadsheetFile(file, (phase) => setLoading({ phase }));
+        const format = inferFormat(file.name);
+        const isSinglePristine =
+          tabs.length === 1 &&
+          tabs[0].filePath === null &&
+          !tabs[0].isDirty &&
+          (tabs[0].name === 'Untitled' || tabs[0].name.startsWith('Workbook')) &&
+          tabs[0].revision <= 1;
+
+        const targetId = isSinglePristine ? tabs[0].id : 'tab-' + Date.now();
+        const newTab: SheetTab = {
+          id: targetId,
+          name: data.name || file.name.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab|psv)$/i, ''),
+          filePath: null,
+          format,
+          snapshot: data,
+          isDirty: false,
+          revision: 1,
+          serverFileId: null,
+          serverEtag: null,
+        };
+
+        setTabs((prev) => {
+          if (isSinglePristine) return [newTab];
+          return [...prev, newTab];
+        });
+        setActiveTabId(targetId);
+        setView('editor');
+        replaceWorkbook(data, format);
+        setLoading(null);
+      } catch (err) {
+        console.error('[handleOpenFileObject] failed', err);
+        setLoading({
+          fileName: file.name,
+          phase: 'reading',
+          error: err instanceof Error ? err.message : 'Could not open this file.',
+        });
+      }
+    },
+    [view, getLiveSnapshot, tabs, replaceWorkbook, setLoading],
+  );
+
+  const handleSelectTemplate = useCallback(
+    async (t: Template) => {
+      if (t.id === 'blank') {
+        handleNewTab();
+        return;
+      }
+      if (view === 'editor' && activeTabIdRef.current) {
+        const live = getLiveSnapshot();
+        if (live) {
+          setTabs((prev) =>
+            prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, snapshot: live } : t)),
+          );
+        }
+      }
+
+      const url = `${import.meta.env.BASE_URL ?? '/'}templates/${t.id}.xlsx`;
+      setLoading({ fileName: `${t.name}.xlsx`, phase: 'reading' });
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Template fetch failed: ${res.status}`);
+        const sizeBytes = Number(res.headers.get('content-length') ?? '0') || undefined;
+        setLoading({ phase: 'parsing', sizeBytes });
+        const buf = await res.arrayBuffer();
+        const data = (await xlsxToWorkbookData(buf)) as IWorkbookData;
+        data.name = t.name;
+        setLoading({ phase: 'mounting' });
+
+        const isSinglePristine =
+          tabs.length === 1 &&
+          tabs[0].filePath === null &&
+          !tabs[0].isDirty &&
+          (tabs[0].name === 'Untitled' || tabs[0].name.startsWith('Workbook')) &&
+          tabs[0].revision <= 1;
+
+        const targetId = isSinglePristine ? tabs[0].id : 'tab-' + Date.now();
+        const newTab: SheetTab = {
+          id: targetId,
+          name: t.name,
+          filePath: null,
+          format: 'xlsx',
+          snapshot: data,
+          isDirty: false,
+          revision: 1,
+          serverFileId: null,
+          serverEtag: null,
+        };
+
+        setTabs((prev) => {
+          if (isSinglePristine) return [newTab];
+          return [...prev, newTab];
+        });
+        setActiveTabId(targetId);
+        setView('editor');
+        replaceWorkbook(data, 'xlsx');
+        setLoading(null);
+      } catch (err) {
+        console.error('[home] template open failed', err);
+        setLoading({
+          fileName: `${t.name}.xlsx`,
+          phase: 'reading',
+          error: err instanceof Error ? err.message : 'Failed to open template.',
+          onRetry: () => void handleSelectTemplate(t),
+        });
+      }
+    },
+    [view, getLiveSnapshot, tabs, handleNewTab, replaceWorkbook, setLoading],
+  );
+
+  // Desktop shell initial boot load
   useEffect(() => {
     if (!isDesktop()) return;
     const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
-    if (!bridge?.isDesktop || !bridge.filePath) return;
+    if (!bridge?.isDesktop || !bridge.filePath) {
+      bridge?.dismissBoot?.();
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const path = bridge.filePath!;
       const fileName = path.split(/[\\/]/).pop() || 'Workbook.xlsx';
-      const lower = fileName.toLowerCase();
-      let format: WorkbookFormat = 'xlsx';
-      if (lower.endsWith('.ods')) format = 'ods';
-      else if (lower.endsWith('.csv')) format = 'csv';
-      else if (lower.endsWith('.tsv') || lower.endsWith('.tab')) format = 'tsv';
-      else if (lower.endsWith('.psv')) format = 'psv';
+      const format = inferFormat(fileName);
       const startedAt = Date.now();
       try {
         setLoading({ fileName, phase: 'reading', startedAt });
@@ -322,11 +677,14 @@ export function App() {
         if (cancelled) return;
         data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab|psv)$/i, '');
         setLoading({ fileName, phase: 'mounting', startedAt });
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === 'tab-1' ? { ...t, name: data.name, snapshot: data, format, filePath: path } : t,
+          ),
+        );
+        setView('editor');
         replaceWorkbook(data, format);
         setLoading(null);
-        // Workbook is swapped in — drop the cold-start boot overlay so the
-        // freshly-painted grid is interactive. Idempotent; BootDismissDriver
-        // also covers the new-spreadsheet (no filePath) path.
         try {
           window.__deskApp__?.dismissBoot?.();
         } catch {
@@ -337,8 +695,6 @@ export function App() {
         if (!cancelled) {
           setLoading({ fileName, phase: 'reading', startedAt, error: String(err) });
         }
-        // Dismiss on the error path too, so the overlay never sticks over
-        // the LoadingOverlay's error state.
         try {
           window.__deskApp__?.dismissBoot?.();
         } catch {
@@ -352,24 +708,83 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reload when the open file is modified by another process (e.g. the user
-  // saves from Excel while the sheet is open here). The bootstrap translates
-  // the Rust watcher's Tauri event into a DOM CustomEvent. Only 'modified'
-  // triggers a reload; 'removed'/'renamed' are handled on the Rust side and
-  // are no-ops here for now.
+  // Keyboard shortcuts: Ctrl+W (close tab), Ctrl+N / Ctrl+T (new tab)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const metaKey = e.ctrlKey || e.metaKey;
+      if (!metaKey || e.shiftKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'w') {
+        e.preventDefault();
+        if (activeTabIdRef.current) {
+          handleCloseTab(activeTabIdRef.current);
+        }
+      } else if (k === 'n' || k === 't') {
+        e.preventDefault();
+        handleNewTab();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleCloseTab, handleNewTab]);
+
+  // Open file events from desktop Tauri / bridge
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ path?: string; filePath?: string }>).detail;
+      const path = detail?.path || detail?.filePath;
+      if (path) {
+        void openFilePath(path);
+      }
+    };
+    window.addEventListener('csheet:open-file', onOpen);
+    window.addEventListener('deskapp:open-file', onOpen);
+    return () => {
+      window.removeEventListener('csheet:open-file', onOpen);
+      window.removeEventListener('deskapp:open-file', onOpen);
+    };
+  }, [openFilePath]);
+
+  // Sync dirty status with desktop window close-guard
+  useEffect(() => {
+    const hasDirtyTab = tabs.some((t) => t.isDirty);
+    const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
+    bridge?.setDirty?.(hasDirtyTab);
+  }, [tabs]);
+
+  // Sync bridge filePath and window layout resize
+  const activeTab = useMemo(() => {
+    return tabs.find((t) => t.id === activeTabId) || tabs[0];
+  }, [tabs, activeTabId]);
+
+  useEffect(() => {
+    if (!activeTab) return;
+    const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
+    if (bridge?.isDesktop) {
+      bridge.filePath = activeTab.filePath;
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+  }, [activeTabId, view]);
+
+  // Reload when the open file is modified by another process
   useEffect(() => {
     if (!isDesktop()) return;
     const onFileChanged = (e: Event) => {
       const { kind, path } = (e as CustomEvent<{ kind: string; path: string }>).detail ?? {};
       if (kind !== 'modified') return;
       const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
-      if (!bridge?.isDesktop || !bridge.filePath) return;
-      if (path !== bridge.filePath) return;
+      if (!bridge?.isDesktop) return;
+      const targetTab = tabs.find((t) => t.filePath && t.filePath === path);
+      if (!targetTab) return;
       void (async () => {
-        const fp = bridge.filePath!;
         const loadAndReplace = async () => {
-          const buffer = await bridge.loadDocument();
-          const lower = fp.toLowerCase();
+          const buffer = await bridge.loadDocument(path);
+          const lower = path.toLowerCase();
           let data: IWorkbookData;
           if (lower.endsWith('.ods')) data = await odsToWorkbookData(buffer);
           else if (lower.endsWith('.csv')) data = await csvToWorkbookData(buffer);
@@ -377,19 +792,18 @@ export function App() {
             data = await tsvToWorkbookData(buffer);
           else if (lower.endsWith('.psv')) data = await psvToWorkbookData(buffer);
           else data = await xlsxToWorkbookData(buffer);
-          const fileName = fp.split(/[\\/]/).pop() || 'Workbook.xlsx';
+          const fileName = path.split(/[\\/]/).pop() || 'Workbook.xlsx';
           data.name = fileName.replace(/\.(xlsx|xlsm|ods|csv|tsv|tab)$/i, '');
-          replaceWorkbook(data);
+          setTabs((prev) =>
+            prev.map((t) => (t.id === targetTab.id ? { ...t, snapshot: data, isDirty: false } : t)),
+          );
+          if (targetTab.id === activeTabIdRef.current) {
+            replaceWorkbook(data);
+          }
         };
         try {
           await loadAndReplace();
         } catch (err) {
-          // The watcher commonly fires while the external app is still writing
-          // — an atomic save briefly truncates/replaces the file — so the first
-          // read can come back short (see the bridge's short-read guard) or
-          // unparseable. Retry once after a short settle delay, by which point
-          // the write has usually completed, before giving up. Avoids leaving
-          // the user on stale content over a transient mid-write blip.
           console.warn('[deskApp] file-changed reload failed, retrying once', err);
           await new Promise((r) => setTimeout(r, 350));
           try {
@@ -402,7 +816,7 @@ export function App() {
     };
     window.addEventListener('deskapp:file-changed', onFileChanged);
     return () => window.removeEventListener('deskapp:file-changed', onFileChanged);
-  }, [replaceWorkbook]);
+  }, [tabs, replaceWorkbook]);
 
   const updateServerEtag = useCallback((etag: string | null) => {
     setMeta((prev) => (prev.serverEtag === etag ? prev : { ...prev, serverEtag: etag }));
@@ -410,34 +824,29 @@ export function App() {
 
   const markUserEdited = useCallback(() => {
     setMeta((prev) => (prev.hasUserEdited ? prev : { ...prev, hasUserEdited: true }));
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, isDirty: true } : t)),
+    );
   }, []);
 
-  // Cleared at the tail of every successful Save (any source — server,
-  // FSA, download). Drives the logout dirty-check (UX_AUDIT.md §2.14):
-  // `hasUserEdited === true` after a save means the user typed AFTER
-  // the save completed, so logout should still warn. A user who saved
-  // and then typed gets warned; one who saved and idled doesn't.
   const markSaved = useCallback(() => {
     setMeta((prev) => (prev.hasUserEdited ? { ...prev, hasUserEdited: false } : prev));
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, isDirty: false } : t)),
+    );
   }, []);
 
   const updateServerFileId = useCallback((fileId: string | null) => {
     setMeta((prev) => (prev.serverFileId === fileId ? prev : { ...prev, serverFileId: fileId }));
-    // Rebind the URL so the draft `/sheet/new` becomes the canonical
-    // `/sheet/<id>` after the first successful save. replaceState (not
-    // pushState) keeps the history clean — back doesn't return to the
-    // ephemeral draft URL. No-op when there's no DOM (SSR / tests).
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, serverFileId: fileId } : t)),
+    );
     if (fileId && typeof window !== 'undefined' && window.location.pathname === '/sheet/new') {
       window.history.replaceState(window.history.state, '', `/sheet/${encodeURIComponent(fileId)}`);
-      // Tell router subscribers the URL changed so useRoute() re-reads
-      // and the rest of the app sees route.kind flip from sheet-draft
-      // → sheet without a re-mount.
       window.dispatchEvent(new CustomEvent('cd:navigate'));
     }
   }, []);
 
-  // App owns only the meta update — TitleBar mirrors into Univer via
-  // setName since App itself is outside the UniverProvider.
   const renameWorkbook = useCallback((name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -446,17 +855,34 @@ export function App() {
       prevName = prev.name;
       return prev.name === trimmed ? prev : { ...prev, name: trimmed };
     });
-    // Desktop: rename the actual file on disk so the change persists and Ctrl+S
-    // overwrites the renamed file (not the old path). Optimistic — revert the
-    // display name if the on-disk rename fails (e.g. a name collision).
+    setTabs((prev) =>
+      prev.map((t) => (t.id === activeTabIdRef.current ? { ...t, name: trimmed } : t)),
+    );
     const bridge = typeof window !== 'undefined' ? window.__deskApp__ : undefined;
     if (bridge?.isDesktop && bridge.filePath && bridge.rename) {
       void bridge.rename(trimmed).catch((err) => {
         console.error('[deskApp] rename failed', err);
-        if (prevName !== undefined) setMeta((prev) => ({ ...prev, name: prevName as string }));
+        if (prevName !== undefined) {
+          setMeta((prev) => ({ ...prev, name: prevName as string }));
+          setTabs((p) =>
+            p.map((t) => (t.id === activeTabIdRef.current ? { ...t, name: prevName as string } : t)),
+          );
+        }
       });
     }
   }, []);
+
+  const tabInfos = useMemo<DocumentTabInfo[]>(
+    () =>
+      tabs.map((t) => ({
+        id: t.id,
+        fileName: t.name,
+        filePath: t.filePath,
+        isDirty: t.isDirty,
+        format: t.format,
+      })),
+    [tabs],
+  );
 
   const wbValue: WorkbookCtxValue = useMemo(
     () => ({
@@ -710,13 +1136,64 @@ export function App() {
                                   <ThemeBridge />
                                   <RouteWorkbookSync replaceWorkbook={replaceWorkbook} />
                                   <EditTracker markUserEdited={markUserEdited} />
+                                  <UniverApiSync onApi={(api) => { univerApiRef.current = api; }} />
                                   <DeskAuthGate>
                                     <PersonalAuthGate>
-                                      <RouteHost
-                                        routeIsHome={showHomeList}
-                                        home={<MySpreadsheetsList />}
-                                        editor={
-                                          <>
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          height: '100vh',
+                                          width: '100vw',
+                                          overflow: 'hidden',
+                                          background: '#f8fafc',
+                                        }}
+                                      >
+                                        <DocumentTabBar
+                                          tabs={tabInfos}
+                                          activeTabId={activeTabId}
+                                          onSelectTab={handleSelectTab}
+                                          onCloseTab={handleCloseTab}
+                                          onNewTab={handleNewTab}
+                                          showHomeTab={true}
+                                          homeTabActive={view === 'home'}
+                                          onHomeTab={handleHomeTab}
+                                        />
+                                        <div
+                                          style={{
+                                            flex: 1,
+                                            display: 'flex',
+                                            overflow: 'hidden',
+                                            position: 'relative',
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              flex: 1,
+                                              display: view === 'home' || showHomeList ? 'flex' : 'none',
+                                              height: '100%',
+                                              width: '100%',
+                                              overflowY: 'auto',
+                                            }}
+                                          >
+                                            <HomeScreen
+                                              forceVisible={true}
+                                              onNewDocument={handleNewTab}
+                                              onSelectTemplate={handleSelectTemplate}
+                                              onOpenFile={handleOpenFileObject}
+                                              onOpenAuth={() => setAuthModalOpen(true)}
+                                            />
+                                          </div>
+                                          <div
+                                            style={{
+                                              flex: 1,
+                                              display: view === 'home' || showHomeList ? 'none' : 'flex',
+                                              flexDirection: 'column',
+                                              height: '100%',
+                                              width: '100%',
+                                              overflow: 'hidden',
+                                            }}
+                                          >
                                             <CollabDriver>
                                               <div
                                                 className={`app${formulaBarVisible ? '' : ' app--no-formula-bar'}`}
@@ -757,15 +1234,13 @@ export function App() {
                                                 )}
                                               </div>
                                             </CollabDriver>
-                                            {/* HomeScreen overlay only on the editor
-                                          branch — the dedicated /home view doesn't
-                                          need an overlay. */}
-                                            <HomeScreen
-                                              dismissed={homeDismissed}
-                                              onDismiss={() => setHomeDismissed(true)}
-                                            />
-                                          </>
-                                        }
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <DeskAuthDialog
+                                        isOpen={authModalOpen}
+                                        onClose={() => setAuthModalOpen(false)}
+                                        canClose={true}
                                       />
                                       <LoadingOverlay />
                                       <ChartLayer />
@@ -794,53 +1269,7 @@ export function App() {
   );
 }
 
-/** Auth-aware route switch. Lives inside <PersonalAuthGate> so it can
- *  read useAuth() — the App body itself sits ABOVE <AuthProvider> in
- *  the tree and can't.
- *
- *  Two jobs:
- *  1. Decide between MySpreadsheetsList (the /home file picker) and
- *     the editor body. Personal-mode authenticated + route-is-home →
- *     show the list; otherwise fall through to the editor. This keeps
- *     non-personal deploys (Mode 1 / Mode 2 / Playwright / GitHub
- *     Pages, where `auth.state.kind === 'disabled'`) rendering the
- *     editor at `/` exactly as before.
- *  2. Redirect `/` → `/home` when a personal account session exists.
- *     `parseRoute` reports `/` as kind:'home'; we do the URL canonical-
- *     isation here so refresh / share / bookmark all converge.
- *
- *  UX_AUDIT.md §1, §5. */
-function RouteHost({
-  routeIsHome,
-  home,
-  editor,
-}: {
-  routeIsHome: boolean;
-  home: ReactNode;
-  editor: ReactNode;
-}): ReactNode {
-  const auth = useAuth();
-  // `loading` counts as personal-active so we don't flash the editor
-  // shell during the brief auth-status probe on first paint.
-  const personalActive = auth.state.kind === 'authenticated' || auth.state.kind === 'loading';
-  useEffect(() => {
-    // WOPI embeds boot at `/?access_token=…` and need that token to
-    // survive the first render so `detectWopiContext()` keeps
-    // resolving the bound file. A redirect to `/home` would strip the
-    // query string and the source picker would silently flip to the
-    // browser source — recents empty, home-recent-open never renders.
-    if (
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).has('access_token')
-    ) {
-      return;
-    }
-    if (personalActive && typeof window !== 'undefined' && window.location.pathname === '/') {
-      navigate('/home', { replace: true });
-    }
-  }, [personalActive]);
-  return personalActive && routeIsHome ? home : editor;
-}
+
 
 /** Effect-only — listens for the first meaningful content mutation on
  *  the workbook and flips `meta.hasUserEdited`. UX_AUDIT.md §5: the

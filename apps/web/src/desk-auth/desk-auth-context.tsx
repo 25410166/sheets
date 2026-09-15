@@ -68,9 +68,19 @@ const DeskAuthContext = createContext<DeskAuthCtx | null>(null);
 
 // ─────────────── Provider ────────────────────────────────────────────────────
 
+const noopDeskAuth: DeskAuthCtx = {
+  state: { kind: 'unauthenticated' },
+  handleCallback: async () => {},
+  startLogin: async () => ({ loginUrl: '' }),
+  logout: async () => {},
+  recheck: async () => {},
+};
+
 export function DeskAuthProvider({ children }: { children: ReactNode }) {
-  // Not running inside Tauri desktop shell – render children as-is.
-  if (!isDesktop()) return <>{children}</>;
+  // Not running inside Tauri desktop shell – provide fallback context so hooks work safely
+  if (!isDesktop()) {
+    return <DeskAuthContext.Provider value={noopDeskAuth}>{children}</DeskAuthContext.Provider>;
+  }
   return <DeskAuthProviderInner>{children}</DeskAuthProviderInner>;
 }
 
@@ -258,8 +268,7 @@ function DeskAuthProviderInner({ children }: { children: ReactNode }) {
 
 export function useDeskAuth(): DeskAuthCtx {
   const ctx = useContext(DeskAuthContext);
-  if (!ctx) throw new Error('useDeskAuth must be used inside <DeskAuthProvider>');
-  return ctx;
+  return ctx ?? noopDeskAuth;
 }
 
 // ─────────────── Helpers ─────────────────────────────────────────────────────

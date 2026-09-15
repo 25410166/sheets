@@ -17,15 +17,15 @@
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-read-dir",
-    "fs:allow-create-dir",
+    "fs:allow-mkdir",
     "fs:allow-exists",
     "fs:allow-stat",
     "fs:allow-rename",
     "fs:allow-copy-file",
     "fs:allow-remove",
-    "fs:scope-app-data-recursive",
-    "fs:scope-app-cache-recursive",
-    "fs:scope-app-config-recursive",
+    "fs:scope-appdata-recursive",
+    "fs:scope-appcache-recursive",
+    "fs:scope-appconfig-recursive",
     "fs:scope-temp-recursive"
   ]
 }

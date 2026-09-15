@@ -3,4 +3,5 @@
 
 export { DeskAuthProvider, useDeskAuth, authService } from './desk-auth-context';
 export type { DeskAuthState } from './desk-auth-context';
-export { DeskAuthGate } from './DeskAuthGate';
+export { DeskAuthGate, DeskAuthDialog } from './DeskAuthGate';
+export type { DeskAuthDialogProps } from './DeskAuthGate';

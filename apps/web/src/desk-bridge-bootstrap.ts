@@ -188,7 +188,6 @@ function askOpenWhere(path: string): Promise<{ where: 'same' | 'new'; remember: 
 
 if (typeof window !== 'undefined' && isDesktop()) {
   const url = new URL(window.location.href);
-  console.log('[deskApp] bootstrap', { isDesktop: true, search: window.location.search });
 
   const isTopLevel = window.parent === window;
   let filePath = url.searchParams.get('file');
@@ -897,6 +896,26 @@ if (typeof window !== 'undefined' && isDesktop()) {
                 try {
                   window.dispatchEvent(
                     new CustomEvent('deskapp:file-changed', { detail: { kind, path } }),
+                  );
+                } catch {
+                  /* CustomEvent not supported */
+                }
+              },
+            )
+            .catch(() => undefined);
+
+          void tauriEvent
+            .listen(
+              'csheet:open_file',
+              (e: { payload?: { path?: string } }) => {
+                const path = e?.payload?.path;
+                if (!path) return;
+                try {
+                  window.dispatchEvent(
+                    new CustomEvent('csheet:open-file', { detail: { path } }),
+                  );
+                  window.dispatchEvent(
+                    new CustomEvent('deskapp:open-file', { detail: { path } }),
                   );
                 } catch {
                   /* CustomEvent not supported */

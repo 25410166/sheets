@@ -30,83 +30,150 @@ export function DeskAuthGate({ children }: Props) {
   return <DeskAuthGateInner>{children}</DeskAuthGateInner>;
 }
 
-function DeskAuthGateInner({ children }: Props) {
-  const { state, startLogin, logout, recheck } = useDeskAuth();
+export interface DeskAuthDialogProps {
+  isOpen: boolean;
+  onClose?: () => void;
+  canClose?: boolean;
+}
 
-  // Once authenticated, render the app behind the gate
-  if (state.kind === 'authenticated') return <>{children}</>;
+export function DeskAuthDialog({ isOpen, onClose, canClose = true }: DeskAuthDialogProps) {
+  if (!isOpen) return null;
 
   return (
-    <div className="da-gate" role="main">
-      <div className="da-card" role="dialog" aria-modal="true" aria-label="CSheet sign in">
-
-        {/* Logo */}
-        <div className="da-logo">
-          <div className="da-logo-icon" aria-hidden="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="34" height="34" viewBox="0 0 512 512" fill="none">
-              <g transform="translate(64, 16) scale(12)">
-                <path d="M2 0C0.9 0 0 0.9 0 2V38C0 39.1 0.9 40 2 40H30C31.1 40 32 39.1 32 38V10L22 0H2Z" fill="#16a34a"/>
-                <path d="M22 0L32 10H24C22.9 10 22 9.1 22 8V0Z" fill="#14532d"/>
-                <rect x="7" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="11.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="16" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="20.5" y="18" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="7" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="11.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="16" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="20.5" y="23" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="7" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="11.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="16" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
-                <rect x="20.5" y="28" width="4" height="2" rx="0.5" fill="#fff"/>
-              </g>
-            </svg>
-          </div>
-          <div className="da-logo-text">C<span>Sheets</span></div>
-        </div>
-
-        {state.kind === 'checking' && (
-          <CheckingState />
+    <div
+      className="da-gate"
+      role="main"
+      onClick={canClose ? onClose : undefined}
+      style={{ zIndex: 10000 }}
+    >
+      <div
+        className="da-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label="CSheet sign in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {canClose && onClose && (
+          <button
+            type="button"
+            className="da-close-btn"
+            onClick={onClose}
+            title="Đóng (Esc)"
+            style={{
+              position: 'absolute',
+              top: 14,
+              right: 14,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--da-text-muted, #94a3b8)',
+              fontSize: 22,
+              cursor: 'pointer',
+              lineHeight: 1,
+              padding: '2px 6px',
+              borderRadius: 6,
+            }}
+          >
+            ×
+          </button>
         )}
-
-        {state.kind === 'unauthenticated' && (
-          <UnauthenticatedState startLogin={startLogin} reason={state.reason} />
-        )}
-
-        {state.kind === 'upgrade_required' && (
-          <UpgradeRequiredState
-            checkoutUrl={state.checkoutUrl ?? state.entitlement?.checkoutUrl ?? undefined}
-            baseUrl={authService.getBaseUrl()}
-            onLogout={logout}
-          />
-        )}
-
-        {state.kind === 'device_limit' && (
-          <DeviceLimitState
-            activeDevices={state.activeDevices}
-            baseUrl={authService.getBaseUrl()}
-            onRetry={recheck}
-          />
-        )}
-
-        {state.kind === 'ip_reauth' && (
-          <IpReauthState startLogin={startLogin} />
-        )}
-
-        {state.kind === 'device_revoked' && (
-          <DeviceRevokedState startLogin={startLogin} />
-        )}
-
-        {state.kind === 'user_disabled' && (
-          <UserDisabledState baseUrl={authService.getBaseUrl()} />
-        )}
-
-        <div className="da-powered" aria-label="Powered by CookApps">
-          <span>Powered by</span>
-          <strong>CookApps</strong>
-        </div>
+        <DeskAuthCardBody />
       </div>
     </div>
+  );
+}
+
+function DeskAuthGateInner({ children }: Props) {
+  const { state } = useDeskAuth();
+  const isAuth = state.kind === 'authenticated';
+
+  return (
+    <>
+      {children}
+      {!isAuth && (
+        <div className="da-gate" role="main" style={{ zIndex: 9999 }}>
+          <div className="da-card" role="dialog" aria-modal="true" aria-label="CSheet sign in">
+            <DeskAuthCardBody />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function DeskAuthCardBody() {
+  const { state, startLogin, logout, recheck } = useDeskAuth();
+
+  return (
+    <>
+      {/* Logo */}
+      <div className="da-logo">
+        <div
+          className="da-logo-icon"
+          aria-hidden="true"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <svg width="34" height="34" viewBox="0 0 512 512" fill="none">
+            <g transform="translate(64, 16) scale(12)">
+              <path
+                d="M2 0C0.9 0 0 0.9 0 2V38C0 39.1 0.9 40 2 40H30C31.1 40 32 39.1 32 38V10L22 0H2Z"
+                fill="#16a34a"
+              />
+              <path d="M22 0L32 10H24C22.9 10 22 9.1 22 8V0Z" fill="#14532d" />
+              <rect x="7" y="18" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="11.5" y="18" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="16" y="18" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="20.5" y="18" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="7" y="23" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="11.5" y="23" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="16" y="23" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="20.5" y="23" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="7" y="28" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="11.5" y="28" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="16" y="28" width="4" height="2" rx="0.5" fill="#fff" />
+              <rect x="20.5" y="28" width="4" height="2" rx="0.5" fill="#fff" />
+            </g>
+          </svg>
+        </div>
+        <div className="da-logo-text">
+          C<span>Sheets</span>
+        </div>
+      </div>
+
+      {state.kind === 'checking' && <CheckingState />}
+
+      {state.kind === 'unauthenticated' && (
+        <UnauthenticatedState startLogin={startLogin} reason={state.reason} />
+      )}
+
+      {state.kind === 'upgrade_required' && (
+        <UpgradeRequiredState
+          checkoutUrl={state.checkoutUrl ?? state.entitlement?.checkoutUrl ?? undefined}
+          baseUrl={authService.getBaseUrl()}
+          onLogout={logout}
+        />
+      )}
+
+      {state.kind === 'device_limit' && (
+        <DeviceLimitState
+          activeDevices={state.activeDevices}
+          baseUrl={authService.getBaseUrl()}
+          onRetry={recheck}
+        />
+      )}
+
+      {state.kind === 'ip_reauth' && <IpReauthState startLogin={startLogin} />}
+
+      {state.kind === 'device_revoked' && <DeviceRevokedState startLogin={startLogin} />}
+
+      {state.kind === 'user_disabled' && (
+        <UserDisabledState baseUrl={authService.getBaseUrl()} />
+      )}
+
+      <div className="da-powered" aria-label="Powered by CookApps">
+        <span>Powered by</span>
+        <strong>CookApps</strong>
+      </div>
+    </>
   );
 }
 

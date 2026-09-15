@@ -23,30 +23,13 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  NODE_OPTIONS: "--max-old-space-size=8192"
-
 jobs:
-  build-tauri:
-    name: Build (${{ matrix.title }})
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            title: Windows-x64
-            args: '--target x86_64-pc-windows-msvc --bundles nsis'
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-            title: macOS-AppleSilicon
-            args: '--target aarch64-apple-darwin --bundles dmg'
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            title: macOS-Intel
-            args: '--target x86_64-apple-darwin --bundles dmg'
-
+  build-frontend:
+    name: Build Frontend Assets
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      TURBO_CONCURRENCY: "4"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,28 +45,14 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
       - name: Setup Univer fork (build + swap package.jsons)
-        shell: bash
         run: ./scripts/setup-fork.sh
 
       - name: Install pnpm dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build SDK (packages/sdk dist)
+      - name: Build SDK
         run: pnpm --filter @casualoffice/sheets build
-
-      - name: Typecheck frontend
-        run: pnpm --filter @sheet/web typecheck
 
       - name: Build web frontend
         env:
@@ -91,26 +60,84 @@ jobs:
           VITE_DESKTOP_LEASE_PUBLIC_KEY_BASE64: ${{ secrets.DESKTOP_LEASE_PUBLIC_KEY_BASE64 || 'MCowBQYDK2VwAyEAvSTxJ6EC0pASM2tyZYWRB7MZ7KTw/g3g03FwGPIh+EM=' }}
         run: pnpm --filter @sheet/web build
 
-      - name: Build Tauri bundle
+      - name: Upload frontend assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: apps/web/dist
+          if-no-files-found: error
+
+  build-tauri:
+    name: Build (${{ matrix.name }})
+    needs: build-frontend
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+            rust-target: ''
+            args: '--bundles nsis'
+          - name: macos-arm64
+            os: macos-latest
+            rust-target: aarch64-apple-darwin
+            args: '--target aarch64-apple-darwin --bundles dmg'
+          - name: macos-x64
+            os: macos-latest
+            rust-target: x86_64-apple-darwin
+            args: '--target x86_64-apple-darwin --bundles dmg'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download frontend assets
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: apps/web/dist
+
+      - name: Setup Rust
+        if: matrix.rust-target == ''
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust target
+        if: matrix.rust-target != ''
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Build desktop bundle
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          projectPath: src-tauri
+          tauriScript: cargo tauri
+          args: ${{ matrix.args }}
           tagName: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'v1.0.0' }}
           releaseName: ${{ format('CSheets {0}', inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'v1.0.0') }}
           releaseBody: |
             ## CSheets Desktop Release
 
-            Supported platforms: Windows x64, macOS Intel, macOS Apple Silicon.
+            Supported platforms: Windows x64, macOS Apple Silicon (ARM64), macOS Intel (x64).
 
             ### Installation
-            - **Windows**: Run `CSheets-windows-x64-nsis.exe` setup
+            - **Windows**: Run `CSheets-windows-x64-nsis.exe`
             - **macOS**: Open the `.dmg` and drag CSheets to Applications
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
-          args: ${{ matrix.args }}
-          tauriScript: pnpm tauri
-          projectPath: .
+          uploadUpdaterJson: false
+          uploadUpdaterSignatures: false
           releaseAssetNamePattern: CSheets-[platform]-[arch]-[bundle][ext]
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: CSheets-${{ matrix.title }}-[bundle]
+          workflowArtifactNamePattern: CSheets-${{ matrix.name }}-[bundle]

@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "identifier": "net.cookapps.csheet",
   "build": {
-    "beforeBuildCommand": "pnpm --filter @sheet/web build",
+    "beforeDevCommand": "pnpm --filter @sheet/web dev",
+    "devUrl": "http://127.0.0.1:5273",
+    "beforeBuildCommand": "",
     "frontendDist": "../apps/web/dist"
   },
   "app": {

@@ -14,11 +14,99 @@
  * limitations under the License.
  */
 
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const rediRoot = dirname(require.resolve('@wendellhu/redi/package.json'));
+const webRoot = dirname(fileURLToPath(import.meta.url));
+const webNodeModules = resolve(webRoot, 'node_modules');
+const rootNodeModules = resolve(webRoot, '../../node_modules');
+const forkPackages = resolve(webRoot, '../../vendor/univer-revamp/packages');
+const sharedEntry = resolve(webRoot, '../../vendor/univer-revamp/common/shared/src/index.ts');
+const iconsEntry = resolve(webNodeModules, '@univerjs/icons/dist/esm/index.js');
+const nanoidEntry = resolve(webNodeModules, 'nanoid/index.browser.js');
+
+function vendorResolutionPlugin(): Plugin {
+  return {
+    name: 'vendor-resolution-plugin',
+    enforce: 'pre',
+    resolveId(id, importer) {
+      if (id === 'nanoid') {
+        return nanoidEntry;
+      }
+      if (id.includes('assets/icon-map') || id.includes('assets\\icon-map')) {
+        return '\0virtual:icon-map';
+      }
+      if (id === '@univerjs-infra/shared') {
+        return sharedEntry;
+      }
+      if (id === '@univerjs/icons') {
+        return iconsEntry;
+      }
+      if (id.startsWith('@univerjs/') && id.endsWith('.css')) {
+        const sub = id.slice('@univerjs/'.length);
+        const parts = sub.split('/');
+        const pkgName = parts[0];
+        const rest = parts.slice(1).join('/');
+        const pkgDir = resolve(forkPackages, pkgName);
+        const cssPath = resolve(pkgDir, rest);
+        if (existsSync(cssPath)) {
+          return cssPath;
+        }
+        return '\0virtual:empty.css';
+      }
+      if (id.startsWith('@univerjs/')) {
+        const sub = id.slice('@univerjs/'.length);
+        const parts = sub.split('/');
+        const pkgName = parts[0];
+        const rest = parts.slice(1);
+        const pkgDir = resolve(forkPackages, pkgName);
+        if (existsSync(pkgDir)) {
+          if (rest.length === 0) {
+            const entryTs = resolve(pkgDir, 'src/index.ts');
+            if (existsSync(entryTs)) return entryTs;
+            const entryJs = resolve(pkgDir, 'src/index.js');
+            if (existsSync(entryJs)) return entryJs;
+          } else {
+            const subPath = rest.join('/');
+            const direct = resolve(pkgDir, 'src', subPath);
+            if (existsSync(`${direct}.ts`)) return `${direct}.ts`;
+            if (existsSync(`${direct}.tsx`)) return `${direct}.tsx`;
+            if (existsSync(`${direct}/index.ts`)) return `${direct}/index.ts`;
+            if (existsSync(`${direct}/index.tsx`)) return `${direct}/index.tsx`;
+          }
+        }
+      }
+      if (importer && (importer.includes('vendor/univer-revamp') || importer.includes('vendor\\univer-revamp')) && !id.startsWith('.') && !id.startsWith('/')) {
+        try {
+          return require.resolve(id, { paths: [webNodeModules, rootNodeModules] });
+        } catch {
+          // ignore
+        }
+      }
+      return null;
+    },
+    load(id) {
+      if (id === '\0virtual:empty.css') {
+        return '';
+      }
+      if (id === '\0virtual:icon-map') {
+        return `
+const handler = {
+  get: () => new Proxy({}, { get: () => 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' })
+};
+export const ICON_MAP = new Proxy({}, handler);
+`;
+      }
+      return null;
+    },
+  };
+}
 
 // `PAGES_BASE` lets the GitHub Pages workflow build for /sheets/ without
 // committing that path into the repo (local dev stays at /).
@@ -35,7 +123,15 @@ const collabEnabled =
 
 export default defineConfig({
   base,
-  plugins: [react()],
+  plugins: [vendorResolutionPlugin(), react()],
+  resolve: {
+    alias: [
+      { find: /^nanoid$/, replacement: nanoidEntry },
+      { find: /^@univerjs\/icons$/, replacement: iconsEntry },
+      { find: /^@wendellhu\/redi\/react-bindings$/, replacement: resolve(rediRoot, 'dist/esm/react-bindings/index.js') },
+      { find: /^@wendellhu\/redi$/, replacement: resolve(rediRoot, 'dist/esm/index.js') },
+    ],
+  },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __COLLAB_BUILD__: JSON.stringify(collabEnabled),
@@ -50,6 +146,7 @@ export default defineConfig({
   // and rollup hard-errors when an ES worker imports anything multi-chunk.
   worker: {
     format: 'es',
+    plugins: () => [vendorResolutionPlugin()],
   },
   // Pre-bundle the heavy / dynamically-loaded deps at server start instead
   // of letting Vite discover them mid-run. Without this, the first dynamic

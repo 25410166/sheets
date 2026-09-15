@@ -4,6 +4,7 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use tauri::{Emitter, Manager};
 
 // ───────────────────────────────────────── Spreadsheet file I/O ──────────────
 

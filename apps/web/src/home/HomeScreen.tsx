@@ -31,6 +31,7 @@ import { ReopenBanner } from './ReopenBanner';
 import { IdbQuotaBanner } from './IdbQuotaBanner';
 import { PinnedFolderSection } from './PinnedFolderSection';
 import { usePinnedFolder } from '../file-system-access/usePinnedFolder';
+import { useDeskAuth } from '../desk-auth';
 import './home.css';
 
 /**
@@ -58,18 +59,36 @@ const VIEW_META: Record<HomeView, { title: string; sub: string; icon: string }> 
   account: { title: 'Account', sub: 'Your profile and preferences.', icon: 'account_circle' },
 };
 
+export interface HomeScreenProps {
+  dismissed?: boolean;
+  forceVisible?: boolean;
+  onDismiss?: () => void;
+  onNewDocument?: () => void;
+  onSelectTemplate?: (template: Template) => void;
+  onOpenFile?: (file: File) => void;
+  onOpenRecent?: (rec: RecentEntry) => void;
+  onOpenAuth?: () => void;
+}
+
 export function HomeScreen({
   dismissed,
+  forceVisible,
   onDismiss,
-}: {
-  dismissed: boolean;
-  onDismiss: () => void;
-}) {
+  onNewDocument,
+  onSelectTemplate,
+  onOpenFile,
+  onOpenRecent: onOpenRecentProp,
+  onOpenAuth,
+}: HomeScreenProps) {
   const wb = useWorkbook();
   const loading = useLoading();
   const fileSource = useFileSource();
   const recents = useRecentFiles();
   const pinned = usePinnedFolder();
+  const deskAuth = useDeskAuth();
+  const authState = deskAuth?.state;
+  const isAuth = authState?.kind === 'authenticated';
+  const authUser = isAuth ? authState.user : null;
 
   const isBlank = wb.meta.name === 'Untitled' && wb.meta.revision <= 1;
   // Suppress the home in collab rooms — the URL is the authoritative signal
@@ -109,7 +128,7 @@ export function HomeScreen({
     return map;
   }, []);
 
-  const visible = !dismissed && isBlank && !inCollabRoom;
+  const visible = forceVisible || (!dismissed && isBlank && !inCollabRoom);
 
   // Esc closes the home, same as the X button.
   useEffect(() => {
@@ -117,7 +136,7 @@ export function HomeScreen({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onDismiss();
+        onDismiss?.();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -128,8 +147,16 @@ export function HomeScreen({
 
   const pick = async (t: Template) => {
     if (t.id === 'blank') {
+      if (onNewDocument) {
+        onNewDocument();
+        return;
+      }
       wb.replaceWorkbook(emptyWorkbook(), null);
-      onDismiss();
+      onDismiss?.();
+      return;
+    }
+    if (onSelectTemplate) {
+      onSelectTemplate(t);
       return;
     }
     const url = `${import.meta.env.BASE_URL ?? '/'}templates/${t.id}.xlsx`;
@@ -144,7 +171,7 @@ export function HomeScreen({
       data.name = t.name;
       loading.set({ phase: 'mounting' });
       wb.replaceWorkbook(data, 'xlsx');
-      onDismiss();
+      onDismiss?.();
       loading.set(null);
     } catch (err) {
       console.error('[home] template open failed', err);
@@ -158,6 +185,10 @@ export function HomeScreen({
   };
 
   const onOpenRecent = async (rec: RecentEntry) => {
+    if (onOpenRecentProp) {
+      onOpenRecentProp(rec);
+      return;
+    }
     try {
       const opened = await fileSource.openRecent(rec.id);
       wb.replaceWorkbook(
@@ -167,7 +198,7 @@ export function HomeScreen({
           ? { fileId: opened.serverFileId, etag: opened.serverEtag ?? null }
           : null,
       );
-      onDismiss();
+      onDismiss?.();
     } catch (err) {
       console.warn('[home] reopen failed', rec.id, err);
       loading.set({
@@ -181,10 +212,14 @@ export function HomeScreen({
   const openFileFromDisk = async () => {
     const file = await pickXlsxFile();
     if (!file) return;
+    if (onOpenFile) {
+      onOpenFile(file);
+      return;
+    }
     loading.set({ fileName: file.name, sizeBytes: file.size, phase: 'reading' });
     try {
       await loadSpreadsheetFile(file, null, wb.replaceWorkbook, (phase) => loading.set({ phase }));
-      onDismiss();
+      onDismiss?.();
       loading.set(null);
     } catch (err) {
       console.error('[home] open file failed', err);
@@ -312,7 +347,7 @@ export function HomeScreen({
           className="home__close"
           aria-label="Close home"
           title="Close (Esc)"
-          onClick={onDismiss}
+          onClick={() => onDismiss?.()}
           data-testid="home-close"
         >
           <Icon name="close" />
@@ -327,7 +362,92 @@ export function HomeScreen({
               <h1 className="home__page-title">{VIEW_META[view].title}</h1>
               <p className="home__page-sub">{VIEW_META[view].sub}</p>
             </div>
-            <div className="home__page-actions">
+            <div className="home__page-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {/* CookApps Auth Button */}
+              {isAuth ? (
+                <div
+                  onClick={() => setView('account')}
+                  title={`CookApps Account: ${authUser?.name || authUser?.email || ''}`}
+                  data-testid="home-cookapps-chip"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--home-border, #e2e8f0)',
+                    background: 'var(--home-surface-raised, #ffffff)',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    userSelect: 'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: '#16a34a',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {(authUser?.name || authUser?.email || 'C')[0].toUpperCase()}
+                  </span>
+                  <span>{authUser?.name || authUser?.email?.split('@')[0]}</span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: '#16a34a',
+                      background: 'rgba(22, 163, 74, 0.1)',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    Active
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenAuth) onOpenAuth();
+                    else void deskAuth?.startLogin();
+                  }}
+                  data-testid="home-cookapps-login"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#16a34a',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                    transition: 'background 0.15s',
+                  }}
+                  title="Đăng nhập tài khoản CookApps"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect width="16" height="16" rx="3.5" fill="#15803d" />
+                    <path
+                      d="M8 1.5L1.5 7V14.5H6V10H10V14.5H14.5V7L8 1.5Z"
+                      fill="white"
+                    />
+                  </svg>
+                  <span>Sign in with CookApps</span>
+                </button>
+              )}
+
               <Button
                 variant="secondary"
                 icon="folder_open"
@@ -505,12 +625,9 @@ export function HomeScreen({
 
           {/* ── ACCOUNT view ── */}
           {view === 'account' && (
-            <EmptyState
-              icon="account_circle"
-              title="Account & preferences"
-              body="Sign-in, theme, and storage preferences live in the editor's account menu (top-right). This space will host them here soon."
-              cta="Open a blank spreadsheet"
-              onCta={() => void pick(TEMPLATES.find((t) => t.id === 'blank') ?? TEMPLATES[0])}
+            <AccountPanel
+              deskAuth={deskAuth}
+              onOpenAuth={onOpenAuth}
             />
           )}
 
@@ -681,4 +798,134 @@ function formatTime(ts: number): string {
   if (ms < 24 * 60 * 60_000) return `${Math.floor(ms / 3_600_000)} hr ago`;
   const days = Math.floor(ms / 86_400_000);
   return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function AccountPanel({
+  deskAuth,
+  onOpenAuth,
+}: {
+  deskAuth: ReturnType<typeof useDeskAuth>;
+  onOpenAuth?: () => void;
+}) {
+  const state = deskAuth?.state;
+  const isAuth = state?.kind === 'authenticated';
+  const user = isAuth ? state.user : null;
+  const entitlement = isAuth ? state.entitlement : null;
+  const [rechecking, setRechecking] = useState(false);
+
+  const handleRecheck = async () => {
+    if (!deskAuth) return;
+    setRechecking(true);
+    try {
+      await deskAuth.recheck();
+    } finally {
+      setRechecking(false);
+    }
+  };
+
+  return (
+    <div className="home__account-view" style={{ maxWidth: 640, margin: '24px auto', padding: '0 16px' }}>
+      <div
+        style={{
+          background: 'var(--home-surface-raised, #ffffff)',
+          border: '1px solid var(--home-border, #e2e8f0)',
+          borderRadius: 14,
+          padding: 28,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              background: '#16a34a',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+              fontWeight: 700,
+            }}
+          >
+            {isAuth ? (user?.name || user?.email || 'C')[0].toUpperCase() : <Icon name="person" size="lg" />}
+          </div>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+              {isAuth ? user?.name || user?.email : 'CookApps Account'}
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--home-ink-muted, #64748b)' }}>
+              {isAuth ? user?.email : 'Chưa kết nối tài khoản CookApps'}
+            </p>
+          </div>
+          {isAuth && (
+            <span
+              style={{
+                marginLeft: 'auto',
+                padding: '4px 10px',
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 600,
+                background: 'rgba(22, 163, 74, 0.1)',
+                color: '#16a34a',
+                border: '1px solid rgba(22, 163, 74, 0.2)',
+              }}
+            >
+              {entitlement?.plan || 'CookApps Pro'}
+            </span>
+          )}
+        </div>
+
+        {isAuth ? (
+          <div>
+            <div style={{ borderTop: '1px solid var(--home-border, #e2e8f0)', paddingTop: 16, marginBottom: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                <div>
+                  <span style={{ color: 'var(--home-ink-muted, #64748b)' }}>Gói bản quyền:</span>{' '}
+                  <strong>{entitlement?.plan || 'Active'}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--home-ink-muted, #64748b)' }}>Trạng thái:</span>{' '}
+                  <strong style={{ color: '#16a34a' }}>Đã kích hoạt</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--home-ink-muted, #64748b)' }}>Hạn dịch vụ:</span>{' '}
+                  <span>{entitlement?.expiresAt ? new Date(entitlement.expiresAt * 1000).toLocaleDateString() : 'Vĩnh viễn'}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--home-ink-muted, #64748b)' }}>Thiết bị:</span>{' '}
+                  <span>{entitlement?.deviceLimit ? `Tối đa ${entitlement.deviceLimit} máy` : 'Đang hoạt động'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button variant="secondary" onClick={handleRecheck} disabled={rechecking}>
+                {rechecking ? 'Đang kiểm tra…' : 'Kiểm tra lại bản quyền'}
+              </Button>
+              <Button variant="danger" onClick={() => void deskAuth?.logout()}>
+                Đăng xuất
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: 13.5, color: 'var(--home-ink-muted, #64748b)', lineHeight: 1.5, marginBottom: 20 }}>
+              Đăng nhập bằng tài khoản CookApps để kích hoạt toàn bộ tính năng của CSheets Desktop, đồng bộ cấu hình và quản lý giấy phép bản quyền trên các thiết bị.
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (onOpenAuth) onOpenAuth();
+                else void deskAuth?.startLogin();
+              }}
+            >
+              Đăng nhập với CookApps
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
