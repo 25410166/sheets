@@ -54,25 +54,18 @@ jobs:
 
       - name: Build web
         env:
-          # Canonical URL is the apex of the subdomain — sheet.casualoffice.org/
-          # — so assets are root-relative. A small /sheets/ redirect (added
-          # below) keeps the GitHub-provided URL working
-          # (CasualOffice.github.io/sheets/ → 301 → sheet.casualoffice.org/sheets/
-          # → redirect → /).
-          PAGES_BASE: /
+          PAGES_BASE: ${{ github.repository == 'CasualOffice/sheets' && '/' || format('/{0}/', github.event.repository.name) }}
         run: pnpm --filter @sheet/web build
 
       - name: Assemble Pages artifact
-        # CNAME tells GitHub Pages which host to serve; without it in every
-        # deploy, the custom-domain config in the Pages UI gets dropped.
-        # The /sheets/index.html redirect makes the CasualOffice.github.io URL
-        # land on the app instead of 404.
         run: |
           set -euo pipefail
-          mkdir -p public/sheets
+          mkdir -p public
           cp -R apps/web/dist/. public/
-          echo "sheet.casualoffice.org" > public/CNAME
-          cat > public/sheets/index.html <<'HTML'
+          if [ "${{ github.repository }}" = "CasualOffice/sheets" ]; then
+            mkdir -p public/sheets
+            echo "sheet.casualoffice.org" > public/CNAME
+            cat > public/sheets/index.html <<'HTML'
           <!doctype html>
           <html lang="en">
             <head>
@@ -87,6 +80,7 @@ jobs:
             </body>
           </html>
           HTML
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
